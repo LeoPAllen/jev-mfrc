@@ -7,11 +7,13 @@ from jev_mfrc.metrics import (
     _bootstrap_loss_deltas,
     _bootstrap_macro_delta,
     _cell_recovery,
+    _pairwise_coder_disagreement,
     _selective_review,
     _sensitivity,
     _spearman,
     _uncertainty_bootstrap,
     binary_entropy,
+    pairwise_disagreement,
     squared_loss_to_share,
 )
 
@@ -22,6 +24,22 @@ def test_entropy_boundaries_and_midpoint():
     assert x[1] == pytest.approx(np.log(2))
     with pytest.raises(ValueError):
         binary_entropy([1.2])
+
+
+def test_pairwise_disagreement_hand_calculations_and_symmetry():
+    got = pairwise_disagreement([0.0, 1.0, 1 / 3, 2 / 3, 0.5], [3, 3, 3, 3, 4])
+    np.testing.assert_allclose(got, [0.0, 0.0, 2 / 3, 2 / 3, 2 / 3])
+    np.testing.assert_allclose(
+        pairwise_disagreement([0.0, 0.2, 1 / 3, 0.5], [3, 5, 3, 4]),
+        pairwise_disagreement([1.0, 0.8, 2 / 3, 0.5], [3, 5, 3, 4]),
+    )
+
+
+def test_pairwise_disagreement_rejects_invalid_annotator_counts():
+    with pytest.raises(ValueError, match="greater than 1"):
+        pairwise_disagreement(0.5, 1)
+    with pytest.raises(ValueError, match="greater than 1"):
+        pairwise_disagreement([0.0, 0.5], [3, 0])
 
 
 def test_squared_loss_to_human_share():
@@ -52,6 +70,29 @@ def _analysis_df(n=20):
             r[f"p_{f}"] = p
         rows.append(r)
     return pd.DataFrame(rows)
+
+
+def test_pairwise_coder_disagreement_reports_each_foundation_and_macro_mean():
+    rows = []
+    for i in range(60):
+        row = {"n_annotators": 3 + i % 2}
+        n = row["n_annotators"]
+        for j, f in enumerate(FOUNDATIONS):
+            row[f"human_{f}"] = ((i * (j + 1) + j) % (n + 1)) / n
+            row[f"p_{f}"] = ((i * (j + 3) + 7 * j) % 101) / 100
+        rows.append(row)
+    df = pd.DataFrame(rows)
+
+    got = _pairwise_coder_disagreement(df)
+    expected = {
+        f: _spearman(
+            binary_entropy(df[f"p_{f}"]),
+            pairwise_disagreement(df[f"human_{f}"], df["n_annotators"]),
+        )
+        for f in FOUNDATIONS
+    }
+    assert got["foundation_spearman"] == expected
+    assert got["macro_mean"] == pytest.approx(np.mean(list(expected.values())))
 
 
 def test_selective_review_is_reproducible_and_budgeted_by_comment():
@@ -167,13 +208,39 @@ def test_write_summary_reads_current_source_cell_key(tmp_path, monkeypatch):
         "sensitivity_items": 3,
         "uncertainty_validity": {"macro_mean": 0.2, "ci95_low": 0.1, "ci95_high": 0.3},
         "loss_information_retention": {"squared": {"macro": {"estimate": 0.01, "ci95": [0.0, 0.02]}}},
-        "source_sample_cell_recovery": {"soft_mae": 0.1, "hard_mae": 0.2},
+        "source_sample_cell_recovery": {
+            "soft_mae": 0.1,
+            "hard_mae": 0.2,
+            "soft_weighted_mae": 0.11,
+            "hard_weighted_mae": 0.21,
+        },
+        "foundations": list(FOUNDATIONS),
+        "robustness": {
+            "pairwise_coder_disagreement": {
+                "foundation_spearman": {foundation: 0.2 for foundation in FOUNDATIONS},
+                "macro_mean": 0.2,
+            },
+        },
+        "bootstrap_units": {
+            "primary": "item/comment row",
+            "content_cluster_robustness": "exact-text content_id cluster",
+            "heldout_rows": 10,
+            "heldout_unique_content_ids": 10,
+            "row_and_content_cluster_units_coincide": True,
+            "content_cluster_bootstrap_applicable": False,
+        },
     }
     (tmp_path / "results/analysis.json").write_text(json.dumps(payload))
     report.write_summary()
     text = (tmp_path / "results/summary.md").read_text()
     assert "Soft source-cell MAE: 0.100000" in text
     assert "Hard source-cell MAE: 0.200000" in text
+    assert "Unequal-cell-size robustness diagnostic" in text
+    assert "Soft: 0.110000" in text
+    assert "Hard: 0.210000" in text
+    assert "Pairwise coder disagreement" in text
+    assert "Unweighted macro mean" in text
+    assert "Every held-out row has a unique content_id" in text
     assert "not itself a Brier score" in text
     assert "within-comment coder-variance term cancels" in text
     assert "oracle / idealized reference-replacement simulation" in text

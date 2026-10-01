@@ -52,6 +52,26 @@ Primary recovery loss is unweighted mean absolute deviation across observed cell
 
 These are MFRC **sample-cell means**, not natural subreddit prevalence, because corpus sampling enriched moral content. They describe recovery in this selected sample and do not support population-prevalence or causal claims.
 
+## Prespecified secondary robustness checks (frozen before instrument approval)
+
+These checks do not change the primary entropy, loss, oracle-review, or source-cell estimands above.
+
+### Coder-count-adjusted disagreement
+
+Empirical binary entropy of `human_share` remains the primary coder-disagreement quantity. As a secondary robustness operationalization, for `n` retained annotators and positive share `h = k/n`, compute the proportion of unordered coder pairs that disagree:
+
+`pairwise_disagreement = 2 * n * h * (1 - h) / (n - 1)`.
+
+For each foundation, correlate JEV binary entropy with this pairwise disagreement using Spearman, and report the six foundation estimates and their unweighted macro mean. These are point estimates. Pairwise disagreement is not a new target or a truth measure: annotations are a trained-rater reference distribution, and coder disagreement can reflect ambiguity, perspective, coder noise, missing context, or task limitations.
+
+### Exact-text dependence and bootstrap units
+
+The primary bootstrap unit is the item/comment row, with all six foundations on a selected row kept together. The pinned prepared test set has 16,709 rows and 16,709 unique `content_id` values (see `docs/DATA_AUDIT.md`). Thus each exact-text cluster contains one row, the row and content-cluster units coincide, and no separate content-cluster bootstrap is applicable. Content clustering addresses dependence from exact duplicate text only.
+
+### Unequal source-cell sizes
+
+The pinned held-out sample has 12 observed `(bucket, subreddit)` cells. Their item counts are min 98, Q1 1,258.5, median 1,415.5, Q3 1,657.75, and max 2,478 (linear-interpolation quartiles; `docs/DATA_AUDIT.md`). Keep unweighted source-cell MAE as primary. Report cell-size-weighted MAE as the unequal-cell-size robustness diagnostic; do not filter cells or add a minimum-cell-size cutoff. This weighting does not turn the estimates into Reddit population prevalence.
+
 ## Wording sensitivity
 
 Run the fixed strict bundle only on the preselected held-out sensitivity subset. Report mean absolute probability change, hard-label flip rate, canonical/strict correlation, and direction of the main loss/uncertainty results on that subset.

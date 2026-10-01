@@ -122,6 +122,10 @@ def write_summary() -> None:
         f"- Soft source-cell MAE: {_fmt(payload['source_sample_cell_recovery']['soft_mae'], 6)}",
         f"- Hard source-cell MAE: {_fmt(payload['source_sample_cell_recovery']['hard_mae'], 6)}",
         "",
+        "**Unequal-cell-size robustness diagnostic (cell-size-weighted source-cell MAE; unweighted MAE remains primary):**",
+        f"- Soft: {_fmt(payload['source_sample_cell_recovery']['soft_weighted_mae'], 6)}",
+        f"- Hard: {_fmt(payload['source_sample_cell_recovery']['hard_weighted_mae'], 6)}",
+        "",
         "The squared loss is to the human vote share, not itself a Brier score. The hard-minus-probability squared-loss difference equals the same difference averaged over retained individual binary coder judgments because the within-comment coder-variance term cancels.",
         "",
         "Selective-review results are an oracle / idealized reference-replacement simulation: reviewed comments receive their human vote shares. They do not estimate labor time or minutes saved.",
@@ -132,6 +136,30 @@ def write_summary() -> None:
         "",
         "See results/tables/ for foundation-specific diagnostics, absolute-loss secondary results, and selective-review results.",
     ]
+    pairwise = payload.get("robustness", {}).get("pairwise_coder_disagreement")
+    if pairwise:
+        lines += [
+            "",
+            "## Secondary robustness",
+            "",
+            "Pairwise coder disagreement is the coder-count-adjusted robustness operationalization `2*n*h*(1-h)/(n-1)`. It is not a new target; coder disagreement may reflect ambiguity, perspective, coder noise, missing context, or task limits.",
+            "",
+            "| Foundation | Spearman rho |",
+            "|---|---:|",
+        ]
+        for foundation in payload["foundations"]:
+            lines.append(f"| {foundation.title()} | {_fmt(pairwise['foundation_spearman'][foundation])} |")
+        lines += [
+            f"| Unweighted macro mean | {_fmt(pairwise['macro_mean'])} |",
+        ]
+    bootstrap_units = payload.get("bootstrap_units")
+    if bootstrap_units:
+        lines += [
+            "",
+            f"Primary bootstrap unit: {bootstrap_units['primary']}. Exact-text content-cluster unit: {bootstrap_units['content_cluster_robustness']}.",
+        ]
+        if bootstrap_units["row_and_content_cluster_units_coincide"]:
+            lines.append("Every held-out row has a unique content_id, so row and exact-text content-cluster units coincide and no separate content-cluster bootstrap was run.")
     out = path("results", "summary.md")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")

@@ -39,3 +39,7 @@ Kept literal and semantic duplicate counts separate, collapsed only same-label-s
 2026-10-01 — Final structural data audit before JEV inference
 
 Added `docs/DATA_AUDIT.md` with verified snapshot provenance, normalization, split/content duplication, annotator, held-out source-cell, category, and environment summaries; updated `RESEARCH_SPEC.md` to state that config explicitly requests the resolved SHA. Independent raw-to-processed checks passed; 38 blank raw confidence fields are reported descriptively, with no pipeline change. Focused data tests (21), documentation gate, and full suite (75) passed. No JEV/API calls or unresolved audit issue.
+
+2026-10-01 — Task 04 final statistical robustness pass
+
+Added coder-count-adjusted pairwise disagreement as a secondary robustness result and explicitly reported weighted source-cell MAE as the unequal-cell-size diagnostic. The pinned test data have unique `content_id` values, so row and exact-text cluster bootstrap units coincide and no cluster bootstrap was added. Updated the pre-approval methods note and hand-calculated/reporting tests. Focused metrics suite passed (19 tests); full suite passed (78 tests). No JEV/API calls or held-out predictions were inspected; human instrument approval remains required before live inference.

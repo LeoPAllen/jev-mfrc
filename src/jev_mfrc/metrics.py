@@ -41,6 +41,19 @@ def binary_entropy(values):
     return np.where((x == 0) | (x == 1), 0.0, out)
 
 
+def pairwise_disagreement(human_share, n_annotators):
+    """Return the fraction of unordered coder pairs that disagree."""
+    h, n = np.broadcast_arrays(
+        np.asarray(human_share, dtype=float),
+        np.asarray(n_annotators, dtype=float),
+    )
+    if np.any((h < 0) | (h > 1) | ~np.isfinite(h)):
+        raise ValueError("Human shares must be finite probabilities in [0,1]")
+    if np.any(~np.isfinite(n)) or np.any(n != np.floor(n)) or np.any(n <= 1):
+        raise ValueError("Annotator counts must be finite integers greater than 1")
+    return 2 * n * h * (1 - h) / (n - 1)
+
+
 def squared_loss_to_share(pred, human_share):
     p = np.asarray(pred, dtype=float)
     h = np.asarray(human_share, dtype=float)
@@ -83,6 +96,21 @@ def _foundation_metrics(df: pd.DataFrame, variant: str) -> pd.DataFrame:
             "hard_minus_probability_absolute_loss": float((hard_abs - soft_abs).mean()),
         })
     return pd.DataFrame(rows)
+
+
+def _pairwise_coder_disagreement(df: pd.DataFrame) -> dict:
+    n = df["n_annotators"].to_numpy(float)
+    by_foundation = {
+        f: _spearman(
+            binary_entropy(df[f"p_{f}"].to_numpy(float)),
+            pairwise_disagreement(df[f"human_{f}"].to_numpy(float), n),
+        )
+        for f in FOUNDATIONS
+    }
+    return {
+        "foundation_spearman": by_foundation,
+        "macro_mean": float(np.mean(list(by_foundation.values()))),
+    }
 
 
 def _loss_deltas(df: pd.DataFrame) -> tuple[dict[str, float], dict[str, float]]:
@@ -365,6 +393,9 @@ def analyze(cfg: dict) -> dict:
     confidence_corr = _spearman(jev_item_uncertainty, reverse_confidence)
     loss_deltas = _bootstrap_loss_deltas(canonical, int(cfg["analysis"]["bootstrap_reps"]), int(cfg["seed"]))
     uncertainty = _uncertainty_bootstrap(canonical, int(cfg["analysis"]["bootstrap_reps"]), int(cfg["seed"]))
+    pairwise_disagreement = _pairwise_coder_disagreement(canonical)
+    unique_content_ids = int(canonical["content_id"].nunique())
+    heldout_rows = int(len(canonical))
 
     plt.figure(figsize=(6, 4))
     plt.plot(review["budget"] * 100, review["targeted_mse"], marker="o", label="Uncertainty-targeted")
@@ -403,6 +434,17 @@ def analyze(cfg: dict) -> dict:
         "foundations": FOUNDATIONS,
         "uncertainty_validity": uncertainty,
         "loss_information_retention": loss_deltas,
+        "robustness": {
+            "pairwise_coder_disagreement": pairwise_disagreement,
+        },
+        "bootstrap_units": {
+            "primary": "item/comment row",
+            "content_cluster_robustness": "exact-text content_id cluster",
+            "heldout_rows": heldout_rows,
+            "heldout_unique_content_ids": unique_content_ids,
+            "row_and_content_cluster_units_coincide": unique_content_ids == heldout_rows,
+            "content_cluster_bootstrap_applicable": unique_content_ids < heldout_rows,
+        },
         "jev_uncertainty_vs_reverse_coder_confidence_spearman": confidence_corr,
         "source_sample_cell_recovery": {
             "soft_mae": float(soft_row["mae_unweighted"]),
