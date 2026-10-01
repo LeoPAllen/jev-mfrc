@@ -6,6 +6,8 @@ import pytest
 
 from jev_mfrc import data
 
+PINNED_REVISION = "0123456789abcdef0123456789abcdef01234567"
+
 
 def _raw_rows():
     rows = []
@@ -26,7 +28,7 @@ def _raw_rows():
 def _cfg(seed=42):
     return {
         "seed": seed,
-        "dataset": {"repo_id": "x", "revision": "main", "split": "train_dedup", "min_annotators": 3},
+        "dataset": {"repo_id": "x", "revision": PINNED_REVISION, "split": "train_dedup", "min_annotators": 3},
         "sampling": {"dev_items": 2, "sensitivity_items": 2},
     }
 
@@ -36,8 +38,8 @@ def _write_snapshot(root, df):
     raw = root / "data/raw/mfrc.csv.gz"
     df.to_csv(raw, index=False, compression="gzip")
     meta = {
-        "sha256": data._sha256_file(raw), "repo_id": "x", "requested_revision": "main",
-        "resolved_revision": "sha", "split": "train_dedup",
+        "sha256": data._sha256_file(raw), "repo_id": "x", "requested_revision": PINNED_REVISION,
+        "resolved_revision": PINNED_REVISION, "split": "train_dedup",
     }
     (root / "data/raw/mfrc_meta.json").write_text(json.dumps(meta))
 
@@ -342,7 +344,7 @@ def test_prepare_items_rebuilds_stale_derived_cache(tmp_path, monkeypatch):
     raw.to_csv(raw_path, index=False, compression={"method":"gzip", "mtime":0})
     meta_path.write_text(json.dumps({
         "repo_id": cfg["dataset"]["repo_id"], "requested_revision": cfg["dataset"]["revision"],
-        "resolved_revision": "sha", "split": cfg["dataset"]["split"], "sha256": data._sha256_file(raw_path)
+        "resolved_revision": cfg["dataset"]["revision"], "split": cfg["dataset"]["split"], "sha256": data._sha256_file(raw_path)
     }))
     out = data.prepare_items(cfg)
     before = pd.read_csv(out)
@@ -396,4 +398,15 @@ def test_raw_metadata_requires_resolved_revision(tmp_path, monkeypatch):
     del meta["resolved_revision"]
     meta_path.write_text(json.dumps(meta))
     with pytest.raises(RuntimeError, match="resolved dataset revision"):
+        data.download_raw(_cfg())
+
+
+def test_raw_metadata_requires_resolved_revision_to_match_the_configured_pin(tmp_path, monkeypatch):
+    monkeypatch.setattr(data, "path", lambda *p: tmp_path.joinpath(*p))
+    _write_snapshot(tmp_path, _raw_rows())
+    meta_path = tmp_path / "data/raw/mfrc_meta.json"
+    meta = json.loads(meta_path.read_text())
+    meta["resolved_revision"] = "f" * 40
+    meta_path.write_text(json.dumps(meta))
+    with pytest.raises(RuntimeError, match="provenance does not match config"):
         data.download_raw(_cfg())

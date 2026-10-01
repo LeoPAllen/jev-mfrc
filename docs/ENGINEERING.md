@@ -14,7 +14,7 @@ Use ordinary Python, shell, compressed CSV/JSON/Markdown, pytest, and one SQLite
 
 `continue_build.sh` launches one bounded Codex task at a time using `gpt-6-luna` and max reasoning. The task file supplies the goal, relevant files, scientific constraints, and checks. After Codex exits, `taskctl.py` runs focused tests and advances `state/tasks.json` only if they pass.
 
-This build state is a convenience, not a scientific gate. The study runner never reads it.
+The five bounded implementation tasks are complete. This build state is a convenience, not a scientific gate or prerequisite; the study runner never reads it.
 
 `AGENTS.md` stays short so each task carries only the context it needs. Agents should prefer deletion/simplification to adding infrastructure.
 

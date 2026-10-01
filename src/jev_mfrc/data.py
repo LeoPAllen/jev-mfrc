@@ -75,7 +75,12 @@ def _rank(value: str, seed: int, namespace: str) -> str:
 
 def _expected_source(cfg: dict) -> dict:
     dcfg = cfg["dataset"]
-    return {"repo_id": dcfg["repo_id"], "requested_revision": dcfg["revision"], "split": dcfg["split"]}
+    return {
+        "repo_id": dcfg["repo_id"],
+        "requested_revision": dcfg["revision"],
+        "resolved_revision": dcfg["revision"],
+        "split": dcfg["split"],
+    }
 
 
 def _verify_raw_snapshot(raw_path: Path, meta_path: Path) -> dict:
@@ -110,6 +115,10 @@ def download_raw(cfg: dict) -> tuple[Path, Path]:
     dcfg = cfg["dataset"]
     info = HfApi().dataset_info(dcfg["repo_id"], revision=dcfg["revision"])
     resolved = info.sha
+    if resolved != dcfg["revision"]:
+        raise RuntimeError(
+            f"Configured MFRC revision did not resolve to the pinned commit: {resolved} != {dcfg['revision']}"
+        )
     ds = load_dataset(dcfg["repo_id"], revision=resolved, split=dcfg["split"])
     df = ds.to_pandas()
     missing = EXPECTED_COLUMNS - set(df.columns)

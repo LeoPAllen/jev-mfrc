@@ -27,27 +27,22 @@ python -m pytest -q
 
 The scientific runner uses the local `src/` package through `./run.sh`; no editable install is needed. Keep provider secrets outside the repository. Set `TYPESAFE_API_KEY` in the shell before paid JEV inference.
 
-## Build the repository
-
-Use `continue_build.sh` as the one-task primitive:
-
-```bash
-./continue_build.sh
-```
-
-Each invocation gives Codex one pending task, runs that task's focused checks, and advances the task state only when those checks pass. The command also accepts `--status` and `--print` for inspection. `continue_all.sh` is an optional sequential wrapper that runs one-task invocations and auto-commits each successful task. Both build commands need the Codex CLI installed and signed in; see the [official Codex CLI quickstart](https://developers.openai.com/codex/cli). The scientific runner does not depend on Codex or build-task state.
-
 ## Run the study
 
-Set the provider key in your shell before paid inference. To limit inference to at most 100 new calls per invocation and resume from cached responses:
+Prepare and audit the pinned data snapshot first. This stage needs no API key and makes no JEV calls:
+
+```bash
+./run.sh --stage data
+```
+
+The next scientific step is canonical-only development inference. Set the provider key in your shell, then run at most 10 new calls:
 
 ```bash
 export TYPESAFE_API_KEY="<your key>"
-./run.sh --stage all --max-items 100
-# Repeat until the development review is ready.
+./run.sh --stage dev --max-items 10
 ```
 
-When development inference is complete, `all` writes `results/dev_review.md` and stops for the human instrument decision. Inspect the review and the canonical and strict question bundles:
+Repeat the `dev` command until the 1,000 development items are complete. It runs only the canonical questions. Completion writes `results/dev_review.md` and stops before any held-out inference. Inspect the review and both prespecified question bundles:
 
 ```bash
 python3 scripts/approve_instrument.py
@@ -60,7 +55,7 @@ python3 scripts/approve_instrument.py --approve
 ./run.sh --stage all --max-items 100
 ```
 
-Repeat `all` to resume held-out canonical inference, run the fixed sensitivity subset, and analyze once each preceding phase is complete. Each invocation advances at most one scientific phase after preparing and auditing the data. `--max-items` limits new paid calls in that invocation.
+Only after that human approval can `all` resume held-out canonical inference, run the fixed sensitivity subset, and analyze once each preceding phase is complete. Repeat `all` to resume; each invocation advances at most one scientific phase after preparing and auditing the data. `--max-items` limits new paid calls in that invocation.
 
 Available explicit stages are `data`, `dev`, `test`, `sensitivity`, `analyze`, and `all`. Use `data` to prepare the dataset without JEV calls. Stages are resumable from the call cache. The approval check is enforced for held-out inference and analysis.
 

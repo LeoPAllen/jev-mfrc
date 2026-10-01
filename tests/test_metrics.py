@@ -247,6 +247,16 @@ def test_write_summary_reads_current_source_cell_key(tmp_path, monkeypatch):
     assert "do not estimate population prevalence or causal effects" in text
 
 
+def test_analysis_requires_approval_before_reading_heldout_outputs(tmp_path, monkeypatch):
+    import jev_mfrc.metrics as metrics
+    import jev_mfrc.jev as jev
+
+    monkeypatch.setattr(jev, "path", lambda *p: tmp_path.joinpath(*p))
+    monkeypatch.setattr(metrics, "path", lambda *p: pytest.fail("held-out files must not be read before approval"))
+    with pytest.raises(RuntimeError, match="Held-out inference is blocked"):
+        metrics.analyze({})
+
+
 def test_dev_review_does_not_truncate_selected_comment_text(tmp_path, monkeypatch):
     import jev_mfrc.report as report
     monkeypatch.setattr(report, "path", lambda *p: tmp_path.joinpath(*p))

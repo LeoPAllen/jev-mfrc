@@ -2,7 +2,7 @@
 
 2026-09-30 — Initial research-first review
 
-Simplified the original scaffold so development can proceed in five bounded GPT-6 Luna Max chunks while preserving the scientific guardrails that matter. Build tasks intentionally remain pending; `./continue_build.sh` advances one task per successful invocation.
+Simplified the original scaffold so development could proceed in five bounded GPT-6 Luna Max chunks while preserving the scientific guardrails that matter. Those implementation tasks are complete; build state is separate from scientific inference.
 
 2026-10-01 — Task 01 baseline and runner
 
@@ -43,3 +43,7 @@ Added `docs/DATA_AUDIT.md` with verified snapshot provenance, normalization, spl
 2026-10-01 — Task 04 final statistical robustness pass
 
 Added coder-count-adjusted pairwise disagreement as a secondary robustness result and explicitly reported weighted source-cell MAE as the unequal-cell-size diagnostic. The pinned test data have unique `content_id` values, so row and exact-text cluster bootstrap units coincide and no cluster bootstrap was added. Updated the pre-approval methods note and hand-calculated/reporting tests. Focused metrics suite passed (19 tests); full suite passed (78 tests). No JEV/API calls or held-out predictions were inspected; human instrument approval remains required before live inference.
+
+2026-10-01 — Final pre-inference audit
+
+Required raw requested/resolved revisions to match the configured immutable pin and added the direct analysis approval guard. Clarified primary/secondary analysis roles and the data → canonical dev → human review sequence. Data stage passed without `TYPESAFE_API_KEY`; full suite passed (80 tests), as did compilation, shell syntax, documentation gate, snapshot ignore check, and diff check. No live JEV calls were made. Still pending: authenticated request, actual dev predictions, human semantic approval, and held-out/sensitivity inference.

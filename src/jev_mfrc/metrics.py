@@ -355,6 +355,9 @@ def _sensitivity(canonical: pd.DataFrame, strict: pd.DataFrame) -> tuple[pd.Data
 
 
 def analyze(cfg: dict) -> dict:
+    from .jev import _validate_approval
+
+    _validate_approval(cfg)
     items = pd.read_csv(path("data", "processed", "items.csv.gz"))
     pred = pd.read_csv(path("data", "processed", "jev_predictions.csv.gz"))
     test = items.loc[items["split"] == "test"].copy()

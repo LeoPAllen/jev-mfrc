@@ -12,6 +12,8 @@ For each eligible comment `i` and foundation `f`:
 
 Use natural-log binary entropy with `H(0)=H(1)=0`. Entropy is a symmetric uncertainty index, not construct intensity.
 
+The four numbered analyses below are the prespecified primary analyses. Their estimands are fixed before inference; the secondary checks that follow cannot replace them based on held-out performance.
+
 ## 1. Uncertainty validity
 
 For each foundation separately, compute Spearman correlation across held-out comments between `H(p_if)` and `H(h_if)`. The primary summary is the unweighted macro mean of the six correlations.
@@ -40,7 +42,7 @@ For budgets `{0, .05, .10, .20, .30}`:
 - targeted oracle: replace all six JEV probabilities with the human vote shares for the highest-uncertainty `b` fraction of comments;
 - random oracle: replace the same number of random comments, repeated 200 times.
 
-Outcome: matrix MSE to the full human vote-share reference. Report targeted MSE, random mean/interval, and targeted-minus-random difference.
+Primary outcome: matrix MSE to the full human vote-share reference. Report targeted MSE, random mean/interval, and targeted-minus-random difference.
 
 This is an **oracle / idealized reference-replacement simulation**. It asks whether model uncertainty ranks valuable review cases. It does not estimate actual minutes saved or the outcome of adding one more coder.
 
@@ -48,7 +50,7 @@ This is an **oracle / idealized reference-replacement simulation**. It asks whet
 
 For each observed held-out MFRC `(bucket, subreddit) × foundation` source cell, calculate the human-share mean and estimates from soft JEV, hard JEV, targeted-review hybrids, and random-review hybrids.
 
-Primary recovery loss is unweighted mean absolute deviation across observed cells; cell-size-weighted mean absolute deviation is a sensitivity diagnostic.
+Primary recovery loss is unweighted mean absolute deviation across observed cells; cell-size-weighted mean absolute deviation is a secondary robustness diagnostic.
 
 These are MFRC **sample-cell means**, not natural subreddit prevalence, because corpus sampling enriched moral content. They describe recovery in this selected sample and do not support population-prevalence or causal claims.
 
@@ -66,7 +68,7 @@ For each foundation, correlate JEV binary entropy with this pairwise disagreemen
 
 ### Exact-text dependence and bootstrap units
 
-The primary bootstrap unit is the item/comment row, with all six foundations on a selected row kept together. The pinned prepared test set has 16,709 rows and 16,709 unique `content_id` values (see `docs/DATA_AUDIT.md`). Thus each exact-text cluster contains one row, the row and content-cluster units coincide, and no separate content-cluster bootstrap is applicable. Content clustering addresses dependence from exact duplicate text only.
+The primary bootstrap unit is the item/comment row, with all six foundations on a selected row kept together. A `content_id` cluster bootstrap is a secondary robustness check only if multiple rows share a content ID. The pinned prepared test set has 16,709 rows and 16,709 unique `content_id` values (see `docs/DATA_AUDIT.md`), so each exact-text cluster contains one row, the row and content-cluster units coincide, and the secondary cluster bootstrap is not applicable. Content clustering addresses dependence from exact duplicate text only.
 
 ### Unequal source-cell sizes
 
@@ -77,6 +79,7 @@ The pinned held-out sample has 12 observed `(bucket, subreddit)` cells. Their it
 Run the fixed strict bundle only on the preselected held-out sensitivity subset. Report mean absolute probability change, hard-label flip rate, canonical/strict correlation, and direction of the main loss/uncertainty results on that subset.
 
 Canonical remains primary regardless of comparative performance. Strict wording is never run as a competing development specification.
+No wording or analysis method will be selected or changed based on held-out performance.
 
 ## Statistical emphasis
 
