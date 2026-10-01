@@ -23,3 +23,7 @@ Kept outputs aligned with the four core analyses, added foundation and macro ent
 2026-10-01 — Task 05 end-to-end package
 
 Clarified fresh setup and resumable study phases; kept `./continue_build.sh` as the sole build loop; removed the unused auto-loop, shell alias, and stale validation record; sourced the study literature and bounded the paper outline. Full suite passed (69 tests), as did shell syntax, documentation gate, Python compilation, and a synthetic no-network analysis smoke test. Human instrument approval remains required before held-out inference; no other package issue remains.
+
+2026-10-01 — Localized review and provenance fixes
+
+Ignored the raw metadata and generated audit JSON, namespaced JEV model snapshots by experiment/provider/request, and expanded deterministic canonical-only development review with explicit human tie handling and annotator counts. Clarified the optional auto-commit wrapper in the README and updated the majority-category definition. Focused suite passed (57 JEV, metrics, and data tests); no paid calls or held-out inference were run, and no unresolved issue remains.

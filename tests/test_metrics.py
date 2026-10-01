@@ -186,6 +186,7 @@ def test_dev_review_does_not_truncate_selected_comment_text(tmp_path, monkeypatc
     (tmp_path / "data/processed").mkdir(parents=True)
     long_text = "x" * 700 + " END_MARKER"
     item = {"item_id": "d1", "text": long_text, "split": "dev"}
+    item["n_annotators"] = 4
     for f in FOUNDATIONS:
         item[f"human_{f}"] = 1.0
     pd.DataFrame([item]).to_csv(tmp_path / "data/processed/items.csv.gz", index=False, compression="gzip")
@@ -194,4 +195,67 @@ def test_dev_review_does_not_truncate_selected_comment_text(tmp_path, monkeypatc
         row[f"p_{f}"] = 0.5
     pd.DataFrame([row]).to_csv(tmp_path / "data/processed/dev_predictions.csv.gz", index=False, compression="gzip")
     report.write_dev_review()
-    assert "END_MARKER" in (tmp_path / "results/dev_review.md").read_text()
+    review = (tmp_path / "results/dev_review.md").read_text()
+    assert "END_MARKER" in review
+    assert "item_id: `d1`" in review
+    assert "JEV p=0.500; human share=1.000; retained annotators=4" in review
+    assert "exactly 0.5 is a tie excluded from both" in review
+
+
+def test_dev_review_selection_is_deterministic_and_disjoint(tmp_path):
+    from jev_mfrc.report import _select_dev_review_cases
+
+    rows = []
+    for i, (p, h) in enumerate([
+        (0.50, 0.50), (0.49, 0.00), (0.51, 0.00), (0.99, 0.00),
+        (0.01, 1.00), (0.98, 0.25), (0.02, 0.75), (0.50, 1.00),
+        (0.50, 0.00), (0.50, 0.50), (0.50, 0.25), (0.50, 0.75),
+    ]):
+        rows.append({"item_id": f"id-{i:02}", "p_care": p, "human_care": h})
+    frame = pd.DataFrame(rows)
+
+    selected = _select_dev_review_cases(frame, "care")
+    shuffled = _select_dev_review_cases(frame.sample(frac=1, random_state=12), "care")
+    assert {key: list(value.item_id) for key, value in selected.items()} == {
+        key: list(value.item_id) for key, value in shuffled.items()
+    }
+    selected_ids = [item_id for section in selected.values() for item_id in section.item_id]
+    assert len(selected_ids) == len(set(selected_ids))
+    assert list(selected["Closest to JEV p = 0.5"].item_id) == ["id-00", "id-07", "id-08"]
+
+
+def test_dev_review_ties_are_excluded_from_majority_disagreements():
+    from jev_mfrc.report import _select_dev_review_cases
+
+    frame = pd.DataFrame([
+        {"item_id": "tie-positive-p", "p_care": 0.99, "human_care": 0.5},
+        {"item_id": "tie-negative-p", "p_care": 0.01, "human_care": 0.5},
+        {"item_id": "negative-majority", "p_care": 0.99, "human_care": 0.0},
+        {"item_id": "positive-majority", "p_care": 0.01, "human_care": 1.0},
+        {"item_id": "uncertain-1", "p_care": 0.5, "human_care": 0.0},
+        {"item_id": "uncertain-2", "p_care": 0.5, "human_care": 1.0},
+        {"item_id": "uncertain-3", "p_care": 0.5, "human_care": 0.5},
+    ])
+
+    sections = _select_dev_review_cases(frame, "care")
+    positive = set(sections["Confident JEV-positive / human-negative-majority disagreements"].item_id)
+    negative = set(sections["Confident JEV-negative / human-positive-majority disagreements"].item_id)
+    assert positive == {"negative-majority"}
+    assert negative == {"positive-majority"}
+
+
+def test_dev_review_rejects_noncanonical_development_predictions(tmp_path, monkeypatch):
+    import jev_mfrc.report as report
+
+    monkeypatch.setattr(report, "path", lambda *p: tmp_path.joinpath(*p))
+    (tmp_path / "data/processed").mkdir(parents=True)
+    item = {"item_id": "d1", "text": "development example", "split": "dev", "n_annotators": 3}
+    prediction = {"item_id": "d1", "variant": "strict"}
+    for foundation in FOUNDATIONS:
+        item[f"human_{foundation}"] = 0.5
+        prediction[f"p_{foundation}"] = 0.5
+    pd.DataFrame([item]).to_csv(tmp_path / "data/processed/items.csv.gz", index=False, compression="gzip")
+    pd.DataFrame([prediction]).to_csv(tmp_path / "data/processed/dev_predictions.csv.gz", index=False, compression="gzip")
+
+    with pytest.raises(RuntimeError, match="non-canonical prompt variant"):
+        report.write_dev_review()

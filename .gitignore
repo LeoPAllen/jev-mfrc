@@ -6,7 +6,9 @@ __pycache__/
 cache/*.sqlite
 cache/*.sqlite-*
 data/raw/*.csv.gz
+data/raw/mfrc_meta.json
 data/processed/*.csv.gz
+data/processed/audit.json
 results/figures/*.png
 results/tables/*.csv
 results/*.json

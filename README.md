@@ -29,13 +29,13 @@ The scientific runner uses the local `src/` package through `./run.sh`; no edita
 
 ## Build the repository
 
-The only build-loop command is:
+Use `continue_build.sh` as the one-task primitive:
 
 ```bash
 ./continue_build.sh
 ```
 
-Each invocation gives Codex one pending task, runs that task's focused checks, and advances the task state only when those checks pass. The command also accepts `--status` and `--print` for inspection. It needs the Codex CLI installed and signed in; see the [official Codex CLI quickstart](https://developers.openai.com/codex/cli). The scientific runner does not depend on Codex or build-task state.
+Each invocation gives Codex one pending task, runs that task's focused checks, and advances the task state only when those checks pass. The command also accepts `--status` and `--print` for inspection. `continue_all.sh` is an optional sequential wrapper that runs one-task invocations and auto-commits each successful task. Both build commands need the Codex CLI installed and signed in; see the [official Codex CLI quickstart](https://developers.openai.com/codex/cli). The scientific runner does not depend on Codex or build-task state.
 
 ## Run the study
 

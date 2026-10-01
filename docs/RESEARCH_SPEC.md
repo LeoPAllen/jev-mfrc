@@ -29,7 +29,7 @@ For comment `i` and foundation `f`:
 
 `human_share_if = number of retained annotators selecting f / number of retained annotators`.
 
-This is the observed distribution of trained judgments, not truth or a precisely estimated latent probability. When a hard human reference is needed, use `human_share >= 0.5`, matching majority-vote logic.
+This is the observed distribution of trained judgments, not truth or a precisely estimated latent probability. When a human-majority category is needed for diagnostics, a share above 0.5 is a positive majority, a share below 0.5 is a negative majority, and exactly 0.5 is a tie. Primary analyses retain the fractional shares directly.
 
 Coder confidence is secondary because it applies to the whole multilabel annotation rather than one foundation.
 

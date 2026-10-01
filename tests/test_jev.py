@@ -49,7 +49,7 @@ def _items(root):
 def _snapshot(root, returned="jev-2026-09-15", release_date="2026-09-15"):
     p = root / "cache"
     p.mkdir(parents=True, exist_ok=True)
-    (p / f"jev_model_{EXP[:16]}.json").write_text(json.dumps({
+    jev._model_snapshot_path(CFG).write_text(json.dumps({
         "request_protocol_version": jev.REQUEST_PROTOCOL_VERSION,
         "experiment_fingerprint": EXP,
         "provider_base_url": CFG["jev"]["base_url"],
@@ -58,6 +58,23 @@ def _snapshot(root, returned="jev-2026-09-15", release_date="2026-09-15"):
         "observed_response_model": returned,
         "created_at": "now",
     }))
+
+
+def test_model_snapshot_path_is_deterministically_scoped_to_experiment_provider_and_request(tmp_path, monkeypatch):
+    monkeypatch.setattr(jev, "path", lambda *parts: tmp_path.joinpath(*parts))
+    monkeypatch.setattr(jev, "_current_experiment", lambda cfg: cfg["experiment"])
+    base = {"experiment": "experiment-a", "jev": {"base_url": "https://provider.test/", "model": "jev-latest"}}
+    same = {"experiment": "experiment-a", "jev": {"base_url": "https://provider.test", "model": "jev-latest"}}
+
+    base_path = jev._model_snapshot_path(base)
+    assert base_path == jev._model_snapshot_path(same)
+    assert base_path != jev._model_snapshot_path({**base, "experiment": "experiment-b"})
+    assert base_path != jev._model_snapshot_path({
+        **base, "jev": {"base_url": "https://other-provider.test", "model": "jev-latest"}
+    })
+    assert base_path != jev._model_snapshot_path({
+        **base, "jev": {"base_url": "https://provider.test/", "model": "jev-other"}
+    })
 
 
 def _seed_dev(root, returned="jev-2026-09-15"):

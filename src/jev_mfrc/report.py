@@ -21,6 +21,51 @@ def _fmt(value, digits: int = 4) -> str:
     return f"{x:.{digits}f}"
 
 
+def _select_dev_review_cases(frame: pd.DataFrame, foundation: str) -> dict[str, pd.DataFrame]:
+    """Select canonical development examples in stable, non-overlapping sections."""
+    p_col = f"p_{foundation}"
+    h_col = f"human_{foundation}"
+    work = frame.copy()
+    work["_item_sort"] = work["item_id"].astype(str)
+    work["_confidence"] = np.abs(work[p_col].astype(float) - 0.5)
+    work["_human_mixed_distance"] = np.abs(work[h_col].astype(float) - 0.5)
+    used: set[str] = set()
+
+    def take(ordered: pd.DataFrame, count: int) -> pd.DataFrame:
+        available = ordered.loc[~ordered["item_id"].astype(str).isin(used)].head(count).copy()
+        used.update(available["item_id"].astype(str))
+        return available
+
+    uncertainty = work.sort_values(
+        ["_confidence", "_item_sort"], ascending=[True, True], kind="mergesort"
+    )
+    positive_disagreement = work.loc[(work[p_col] > 0.5) & (work[h_col] < 0.5)].sort_values(
+        ["_confidence", "_item_sort"], ascending=[False, True], kind="mergesort"
+    )
+    negative_disagreement = work.loc[(work[p_col] < 0.5) & (work[h_col] > 0.5)].sort_values(
+        ["_confidence", "_item_sort"], ascending=[False, True], kind="mergesort"
+    )
+
+    low_reference = work.loc[work[h_col] < 0.5].sort_values(
+        [h_col, "_item_sort"], ascending=[True, True], kind="mergesort"
+    )
+    mixed_reference = work.loc[(work[h_col] > 0.0) & (work[h_col] < 1.0)].sort_values(
+        ["_human_mixed_distance", "_item_sort"], ascending=[True, True], kind="mergesort"
+    )
+    high_reference = work.loc[work[h_col] > 0.5].sort_values(
+        [h_col, "_item_sort"], ascending=[False, True], kind="mergesort"
+    )
+
+    return {
+        "Closest to JEV p = 0.5": take(uncertainty, 3),
+        "Confident JEV-positive / human-negative-majority disagreements": take(positive_disagreement, 3),
+        "Confident JEV-negative / human-positive-majority disagreements": take(negative_disagreement, 3),
+        "Deterministic reference cases — low human share": take(low_reference, 1),
+        "Deterministic reference cases — mixed human share": take(mixed_reference, 1),
+        "Deterministic reference cases — high human share": take(high_reference, 1),
+    }
+
+
 def write_dev_review() -> None:
     items = pd.read_csv(path("data", "processed", "items.csv.gz"))
     pred_path = path("data", "processed", "dev_predictions.csv.gz")
@@ -33,6 +78,7 @@ def write_dev_review() -> None:
         "",
         "Purpose: semantic validation of the canonical instrument only. The strict wording is prespecified for held-out sensitivity and is not compared on development performance.",
         "JEV values are provider-documented `noul` probabilities of Yes/True to each bounded foundation-presence question, not moral-intensity scores. Human shares are the observed trained-rater reference distribution, not truth.",
+        "Majority-disagreement sections use strict human-share cutoffs: above 0.5 is a positive majority, below 0.5 is a negative majority, and exactly 0.5 is a tie excluded from both.",
         "Review whether each question operationalizes the MFRC construct defensibly and inspect obvious failure modes.",
         "",
     ]
@@ -40,21 +86,20 @@ def write_dev_review() -> None:
     if set(frame["variant"].unique()) - {"canonical"}:
         raise RuntimeError("Development review unexpectedly contains a non-canonical prompt variant")
     for f in FOUNDATIONS:
-        frame["uncertainty_distance"] = np.abs(frame[f"p_{f}"] - 0.5)
-        uncertain = frame.sort_values(["uncertainty_distance", "item_id"], kind="mergesort").head(2)
-        disagreement = frame.loc[(frame[f"p_{f}"] >= .5) != (frame[f"human_{f}"] >= .5)].copy()
-        if not disagreement.empty:
-            disagreement["certainty"] = np.abs(disagreement[f"p_{f}"] - .5)
-            disagreement = disagreement.sort_values(["certainty", "item_id"], ascending=[False, True], kind="mergesort").head(2)
+        sections = _select_dev_review_cases(frame, f)
         lines += [f"## {f.title()}", ""]
-        for label, ex in (("Most uncertain", uncertain), ("Confident human-majority disagreements", disagreement)):
+        for label, ex in sections.items():
             lines.append(f"**{label}**")
             if ex.empty:
-                lines.append("- None in development sample.")
+                lines.append("- None available in the development sample.")
             else:
                 for r in ex.itertuples(index=False):
-                    text = str(r.text).replace("\n", " ")
-                    lines.append(f"- JEV={getattr(r, 'p_'+f):.3f}; human share={getattr(r, 'human_'+f):.3f}; text: {text}")
+                    item_text = " ".join(str(r.text).splitlines())
+                    lines.append(
+                        f"- item_id: `{r.item_id}`; JEV p={getattr(r, 'p_'+f):.3f}; "
+                        f"human share={getattr(r, 'human_'+f):.3f}; "
+                        f"retained annotators={int(r.n_annotators)}; text: {item_text}"
+                    )
             lines.append("")
     out = path("results", "dev_review.md")
     out.parent.mkdir(parents=True, exist_ok=True)

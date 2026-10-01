@@ -124,8 +124,13 @@ def analysis_plan_fingerprint(cfg: dict) -> str:
 
 
 def _model_snapshot_path(cfg: dict) -> Path:
-    exp = _current_experiment(cfg)
-    return path("cache", f"jev_model_{exp[:16]}.json")
+    namespace = json.dumps(
+        [_current_experiment(cfg), _provider_base_url(cfg), cfg["jev"]["model"]],
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+    key = hashlib.sha256(namespace.encode("utf-8")).hexdigest()[:16]
+    return path("cache", f"jev_model_{key}.json")
 
 
 def model_snapshot(cfg: dict) -> dict:
