@@ -8,7 +8,7 @@ The scientific path is linear:
 
 `download/audit -> canonical dev inference -> human approval -> canonical held-out inference -> strict sensitivity -> analysis`
 
-Use ordinary Python, compressed CSV/JSON/Markdown, pytest, and one SQLite cache. No workflow framework, cloud database, Docker requirement, web UI, model-log parser, write-scope police, or separate invariant framework.
+Use ordinary Python, shell, compressed CSV/JSON/Markdown, pytest, and one SQLite cache. Keep the phase logic and approval checks in the research runner.
 
 ## Luna build loop
 
@@ -52,7 +52,7 @@ Held-out inference requires one human approval after complete canonical developm
 - request protocol version;
 - prespecified analysis configuration and `docs/METHODS.md`.
 
-It does **not** bind arbitrary implementation-file bytes, report formatting, Git cleanliness, or build-task receipts. Refactors that preserve the frozen scientific decisions therefore do not create spurious re-approval work.
+It does **not** bind arbitrary implementation-file bytes, report formatting, or Git cleanliness. Refactors that preserve the frozen scientific decisions therefore do not create spurious re-approval work.
 
 ## Fail loudly on what can invalidate the study
 

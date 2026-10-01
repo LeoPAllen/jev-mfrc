@@ -2,7 +2,7 @@
 
 2026-09-30 — Initial research-first review
 
-Simplified the original scaffold so development can proceed in five bounded GPT-6 Luna Max chunks while preserving the scientific guardrails that matter. Build tasks intentionally remain pending; `./continue_build.sh` advances one task per successful invocation. See `VALIDATION.md` for the review record.
+Simplified the original scaffold so development can proceed in five bounded GPT-6 Luna Max chunks while preserving the scientific guardrails that matter. Build tasks intentionally remain pending; `./continue_build.sh` advances one task per successful invocation.
 
 2026-10-01 — Task 01 baseline and runner
 
@@ -19,3 +19,7 @@ Aligned canonical domains to MFRC Coding Guide-2, made the approval manifest rev
 2026-10-01 — Task 04 analysis and review simulation
 
 Kept outputs aligned with the four core analyses, added foundation and macro entropy intervals from shared comment-cluster resamples, and removed unprespecified review MAE, cell RMSE, majority-agreement, and standalone strict-variant outputs. Clarified the coder-level Brier identity, oracle review limits, and sample-cell interpretation in methods and summary reporting. `pytest -q tests/test_metrics.py` passed (13 tests); no unresolved issues.
+
+2026-10-01 — Task 05 end-to-end package
+
+Clarified fresh setup and resumable study phases; kept `./continue_build.sh` as the sole build loop; removed the unused auto-loop, shell alias, and stale validation record; sourced the study literature and bounded the paper outline. Full suite passed (69 tests), as did shell syntax, documentation gate, Python compilation, and a synthetic no-network analysis smoke test. Human instrument approval remains required before held-out inference; no other package issue remains.

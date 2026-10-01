@@ -27,7 +27,8 @@
     {
       "id": "05",
       "name": "end_to_end_and_paper_scaffold",
-      "status": "pending"
+      "status": "complete",
+      "completed_at": "2026-10-01T16:17:35.814077+00:00"
     }
   ]
 }
