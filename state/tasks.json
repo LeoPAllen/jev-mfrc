@@ -1,0 +1,30 @@
+{
+  "tasks": [
+    {
+      "id": "01",
+      "name": "baseline_and_runner",
+      "status": "complete",
+      "completed_at": "2026-10-01T14:41:13.587821+00:00"
+    },
+    {
+      "id": "02",
+      "name": "mfrc_data_and_split",
+      "status": "pending"
+    },
+    {
+      "id": "03",
+      "name": "instrument_and_jev_client",
+      "status": "pending"
+    },
+    {
+      "id": "04",
+      "name": "analysis_and_simulation",
+      "status": "pending"
+    },
+    {
+      "id": "05",
+      "name": "end_to_end_and_paper_scaffold",
+      "status": "pending"
+    }
+  ]
+}
