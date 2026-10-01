@@ -11,3 +11,7 @@ Deferred analysis imports until analysis stages so routine runner startup does n
 2026-10-01 — Task 02 MFRC data and split
 
 Preserved literal raw strings, strengthened exact tuple IDs and text-group split assignment, enforced the three-annotator minimum, and bound provenance to the raw snapshot plus processed-file bytes and scientific settings. Documented snapshot immutability; `pytest -q tests/test_data.py` passed (19 tests). No unresolved issues.
+
+2026-10-01 — Task 03 instrument and JEV client
+
+Aligned canonical domains to MFRC Coding Guide-2, made the approval manifest reviewable and bound to the exact split, both prompt hashes, frozen model metadata, complete canonical dev evidence, and methods/config, and preserved valid paid responses before drift checks for safe resumption. 26 focused prompt/client tests passed; no live provider calls were made. Human semantic approval remains required.

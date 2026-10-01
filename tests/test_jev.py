@@ -85,8 +85,14 @@ def _approve(root):
         "requested_jev_model": CFG["jev"]["model"],
         "jev_provider_base_url": CFG["jev"]["base_url"],
         "model_snapshot": jev.model_snapshot_scientific(CFG),
+        "prespecified_methods": jev.methods_plan_details(CFG),
         "methods_plan_fingerprint": jev.methods_plan_fingerprint(CFG),
-        "dev_evidence_hash": jev.dev_evidence_fingerprint(CFG),
+        "split_summary": jev.split_summary(),
+        "development_evidence": {
+            "completed_calls": jev.completed_calls(CFG, "dev"),
+            "expected_calls": jev.expected_calls(CFG, "dev"),
+            "sha256": jev.dev_evidence_fingerprint(CFG),
+        },
     }
     p = root / "approvals/instrument.json"
     p.write_text(json.dumps(payload))
@@ -98,8 +104,21 @@ def test_job_plan_uses_canonical_dev_only_and_blocks_heldout_without_approval(tm
     dev = jev._jobs(CFG, "dev")
     assert len(dev) == 2
     assert set(dev["variant"]) == {"canonical"}
+    sensitivity = jev._jobs_unchecked("sensitivity")
+    assert list(sensitivity["item_id"]) == ["t1"]
+    assert set(sensitivity["variant"]) == {"strict"}
     with pytest.raises(RuntimeError, match="Held-out inference is blocked"):
         jev._jobs(CFG, "test")
+
+
+def test_completed_calls_resume_without_another_provider_request(tmp_path, monkeypatch):
+    monkeypatch.setattr(jev, "path", lambda *p: tmp_path.joinpath(*p)); _patch_provenance(monkeypatch); _items(tmp_path); _seed_dev(tmp_path)
+    monkeypatch.setattr(jev, "_preflight_model_available", lambda cfg: pytest.fail("cached calls should not trigger preflight"))
+    monkeypatch.setattr(jev, "_post", lambda *args, **kwargs: pytest.fail("cached calls must not be submitted again"))
+
+    result = jev.infer(CFG, stage="dev")
+
+    assert result == {"new_calls": 0, "missing_before": 0, "remaining": 0}
 
 
 def test_validate_response():
@@ -144,15 +163,25 @@ def test_preflight_records_advertised_model_and_ignores_description_only_edits(t
     monkeypatch.setattr(jev, "path", lambda *p: tmp_path.joinpath(*p)); _patch_provenance(monkeypatch)
     monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
     description = {"value": "first"}
+    seen = {}
     class Response:
         status_code = 200; text = ""
         def json(self):
-            return {"models": [{"name": "jev-latest", "description": description["value"], "release_date": "2026-09-15"}]}
-    monkeypatch.setattr(jev.requests, "get", lambda *a, **k: Response())
+            return {"models": [{"name": "jev-latest", "description": description["value"], "release_date": "2026-09-15", "account_tier": "research"}]}
+    def fake_get(url, headers, timeout):
+        seen.update(url=url, headers=headers, timeout=timeout)
+        return Response()
+    monkeypatch.setattr(jev.requests, "get", fake_get)
     snap = jev._preflight_model_available(CFG)
-    assert snap["advertised_model"]["release_date"] == "2026-09-15"
+    assert snap["advertised_model"] == {"name": "jev-latest", "description": "first", "release_date": "2026-09-15", "account_tier": "research"}
+    assert seen == {
+        "url": "https://api.typesafe.ai/v1/models",
+        "headers": {"Authorization": "Bearer test-key"},
+        "timeout": 60.0,
+    }
     description["value"] = "copy edit"
-    jev._preflight_model_available(CFG)  # documentation-only drift is not a blocker
+    again = jev._preflight_model_available(CFG)  # documentation-only drift is not a blocker
+    assert again["advertised_model"]["description"] == "first"  # the initial metadata remains frozen
 
 
 def test_preflight_stops_if_alias_release_date_changes(tmp_path, monkeypatch):
@@ -190,6 +219,85 @@ def test_response_model_drift_is_detected(tmp_path, monkeypatch):
         jev._record_returned_model(CFG, "jev-B")
 
 
+def test_infer_caches_valid_response_before_stopping_on_returned_model_drift(tmp_path, monkeypatch):
+    monkeypatch.setattr(jev, "path", lambda *p: tmp_path.joinpath(*p)); _patch_provenance(monkeypatch); _items(tmp_path); _seed_dev(tmp_path, "jev-A")
+    con = jev.connect(tmp_path / "cache/jev.sqlite")
+    con.execute("DELETE FROM predictions WHERE item_id='d2'")
+    con.commit(); con.close()
+    monkeypatch.setattr(jev, "_preflight_model_available", lambda cfg: jev.model_snapshot(cfg))
+    monkeypatch.setattr(jev, "_post", lambda cfg, text, variant: _payload("jev-B"))
+
+    with pytest.raises(RuntimeError, match="changed within the experiment"):
+        jev.infer(CFG, stage="dev")
+
+    con = jev.connect(tmp_path / "cache/jev.sqlite")
+    row = con.execute("SELECT returned_model, response_json FROM predictions WHERE item_id='d2'").fetchone()
+    assert row is not None
+    assert row[0] == "jev-B"
+    assert json.loads(row[1])["model"] == "jev-B"
+    with pytest.raises(RuntimeError, match="mix returned JEV models"):
+        jev._assert_model_cache_consistency(con, CFG)
+    con.close()
+
+
+def test_model_identity_recovers_if_process_stops_after_response_commit(tmp_path, monkeypatch):
+    monkeypatch.setattr(jev, "path", lambda *p: tmp_path.joinpath(*p)); _patch_provenance(monkeypatch); _items(tmp_path); _snapshot(tmp_path, returned=None)
+    con = jev.connect(tmp_path / "cache/jev.sqlite")
+    con.execute("INSERT INTO predictions VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                (EXP, CFG["jev"]["base_url"], "d1", "canonical", prompt_hash("canonical"), CFG["jev"]["model"],
+                 "jev-A", jev._state_hash("dev1"), json.dumps(_payload("jev-A")), 1, 0, "now"))
+    con.commit()
+
+    jev._assert_model_cache_consistency(con, CFG)
+    con.close()
+
+    assert jev.model_snapshot(CFG)["observed_response_model"] == "jev-A"
+
+
+def test_post_retries_only_429_with_bounded_backoff(monkeypatch):
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    cfg = json.loads(json.dumps(CFG))
+    cfg["jev"].update(rate_limit_retries=2, rate_limit_backoff_seconds=5)
+    calls = []
+    sleeps = []
+    class Response:
+        def __init__(self, status, retry_after=None):
+            self.status_code = status
+            self.headers = {"Retry-After": str(retry_after)} if retry_after is not None else {}
+            self.text = "limited" if status == 429 else ""
+        def json(self): return _payload()
+    responses = [Response(429, 120), Response(429), Response(200)]
+    def fake_post(*args, **kwargs):
+        calls.append(kwargs["json"]["model"])
+        return responses[len(calls) - 1]
+    monkeypatch.setattr(jev.requests, "post", fake_post)
+    monkeypatch.setattr(jev.time, "sleep", sleeps.append)
+
+    jev._post(cfg, "hello", "canonical")
+
+    assert calls == ["jev-latest"] * 3
+    assert sleeps == [60.0, 10.0]
+
+
+@pytest.mark.parametrize("failure", ["timeout", "server"])
+def test_post_does_not_blindly_retry_ambiguous_outcomes(monkeypatch, failure):
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    calls = []
+    def fake_post(*args, **kwargs):
+        calls.append(1)
+        if failure == "timeout":
+            raise jev.requests.Timeout("ambiguous")
+        class Response:
+            status_code = 503; headers = {}; text = "temporarily unavailable"
+        return Response()
+    monkeypatch.setattr(jev.requests, "post", fake_post)
+
+    with pytest.raises(RuntimeError, match="ambiguously|not auto-retrying"):
+        jev._post(CFG, "hello", "canonical")
+
+    assert calls == [1]
+
+
 def test_current_cached_predictions_require_matching_model_snapshot(tmp_path, monkeypatch):
     monkeypatch.setattr(jev, "path", lambda *p: tmp_path.joinpath(*p)); _patch_provenance(monkeypatch); _items(tmp_path)
     con = jev.connect(tmp_path / "cache/jev.sqlite")
@@ -211,6 +319,9 @@ def test_export_rejects_cached_payload_model_mismatch(tmp_path, monkeypatch):
 def test_approval_allows_heldout_then_methods_change_invalidates_it(tmp_path, monkeypatch):
     monkeypatch.setattr(jev, "path", lambda *p: tmp_path.joinpath(*p)); _patch_provenance(monkeypatch); _items(tmp_path); _approve(tmp_path)
     assert len(jev._jobs(CFG, "test")) == 2
+    sensitivity = jev._jobs(CFG, "sensitivity")
+    assert len(sensitivity) == 1
+    assert set(sensitivity["variant"]) == {"strict"}
     changed = json.loads(json.dumps(CFG)); changed["analysis"]["review_budgets"] = [0.0, 0.2]
     with pytest.raises(RuntimeError, match="Prespecified analysis settings"):
         jev._jobs(changed, "test")

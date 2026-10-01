@@ -5,7 +5,7 @@
 For each eligible comment `i` and foundation `f`:
 
 - `h_if`: fraction of retained trained annotators selecting the foundation;
-- `p_if`: canonical JEV probability of foundation presence;
+- `p_if`: the provider-documented JEV `noul` probability that the canonical bounded presence question is answered Yes/True. This is a probability of that judgment, not a moral-intensity score;
 - `q_if = I(p_if >= .5)`.
 
 Use natural-log binary entropy with `H(0)=H(1)=0`. Entropy is a symmetric uncertainty index, not construct intensity.

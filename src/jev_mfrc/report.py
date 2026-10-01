@@ -32,6 +32,7 @@ def write_dev_review() -> None:
         "# Development-only instrument review",
         "",
         "Purpose: semantic validation of the canonical instrument only. The strict wording is prespecified for held-out sensitivity and is not compared on development performance.",
+        "JEV values are provider-documented `noul` probabilities of Yes/True to each bounded foundation-presence question, not moral-intensity scores. Human shares are the observed trained-rater reference distribution, not truth.",
         "Review whether each question operationalizes the MFRC construct defensibly and inspect obvious failure modes.",
         "",
     ]

@@ -37,7 +37,7 @@ Automatic retry is limited to explicit 429 responses. Timeout, connection, malfo
 
 ## JEV model identity
 
-Before new paid calls, authenticated `GET /v1/models` must advertise the configured request model. The experiment records its name, release date, and description. Name/release-date drift blocks additional calls; description-only edits do not.
+Before new paid calls, authenticated `GET /v1/models` must advertise the configured request model. The experiment records the complete advertised metadata row, including name, release date, and description. Name/release-date drift blocks additional calls; description-only edits do not.
 
 Every POST continues to request the configured model name. The returned response `model` field is recorded, and a different returned value within the same experiment stops. The code does not assume that returned string can itself be submitted as a requestable pinned version.
 

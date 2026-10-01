@@ -58,6 +58,7 @@ def connect(db_path: Path | None = None) -> sqlite3.Connection:
 
 
 def validate_response(payload: dict) -> dict[str, float]:
+    """Validate a response; each ``noul`` value is the provider's P(yes/true)."""
     if not isinstance(payload, dict):
         raise ValueError("JEV response is not an object")
     model = payload.get("model")
@@ -99,16 +100,21 @@ def _provider_base_url(cfg: dict) -> str:
     return cfg["jev"]["base_url"].rstrip("/")
 
 
-def methods_plan_fingerprint(cfg: dict) -> str:
-    """Freeze research decisions, not implementation-file bytes."""
+def methods_plan_details(cfg: dict) -> dict:
+    """Return the prespecified analysis inputs that a human reviews at the gate."""
     methods_path = Path(__file__).resolve().parents[2] / "docs" / "METHODS.md"
     if not methods_path.exists():
         raise RuntimeError("docs/METHODS.md is missing; cannot freeze the analysis plan")
-    payload = {
+    return {
         "seed": int(cfg["seed"]),
         "analysis": cfg["analysis"],
         "methods_sha256": _sha256_file(methods_path),
     }
+
+
+def methods_plan_fingerprint(cfg: dict) -> str:
+    """Freeze research decisions, not implementation-file bytes."""
+    payload = methods_plan_details(cfg)
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
 
 
@@ -141,11 +147,12 @@ def model_snapshot_scientific(cfg: dict) -> dict:
     adv = snap.get("advertised_model") or {}
     return {
         "request_protocol_version": int(snap.get("request_protocol_version", 0)),
+        "experiment_fingerprint": snap.get("experiment_fingerprint"),
         "provider_base_url": snap.get("provider_base_url"),
         "requested_model": snap.get("requested_model"),
-        "advertised_name": adv.get("name"),
-        "advertised_release_date": adv.get("release_date"),
+        "advertised_model": adv,
         "observed_response_model": snap.get("observed_response_model"),
+        "created_at": snap.get("created_at"),
     }
 
 
@@ -166,28 +173,29 @@ def _preflight_model_available(cfg: dict) -> dict:
     url = _provider_base_url(cfg) + "/v1/models"
     try:
         response = requests.get(url, headers={"Authorization": f"Bearer {key}"}, timeout=timeout)
-    except (requests.Timeout, requests.ConnectionError) as exc:
+    except requests.RequestException as exc:
         raise RuntimeError("Could not verify the configured JEV model before inference; no paid call was made.") from exc
     if response.status_code != 200:
         raise RuntimeError(f"Could not verify JEV model availability ({response.status_code}): {response.text[:500]}")
     try:
-        models = response.json()["models"]
+        response_payload = response.json()
+        models = response_payload["models"]
         row = next(m for m in models if str(m.get("name")) == requested)
-    except (ValueError, KeyError, TypeError, StopIteration) as exc:
+        if not isinstance(row, dict):
+            raise TypeError("model metadata row is not an object")
+    except (AttributeError, ValueError, KeyError, TypeError, StopIteration) as exc:
         names = []
         try:
-            names = sorted(str(m.get("name")) for m in response.json().get("models", []))
+            names = sorted(str(m.get("name")) for m in response_payload.get("models", []))
         except Exception:
             pass
         raise RuntimeError(
             f"Configured JEV model/alias {requested!r} is not advertised for this account. Available names: {names}."
         ) from exc
 
-    advertised = {
-        "name": str(row.get("name")),
-        "description": row.get("description"),
-        "release_date": row.get("release_date"),
-    }
+    # Preserve the complete advertised row for this experiment. Drift checks
+    # below intentionally use only identifying name/release-date metadata.
+    advertised = dict(row)
     p = _model_snapshot_path(cfg)
     if p.exists():
         snap = model_snapshot(cfg)
@@ -239,7 +247,13 @@ def _assert_model_cache_consistency(con: sqlite3.Connection, cfg: dict) -> None:
     if len(observed) != 1:
         raise RuntimeError(f"Cached predictions mix returned JEV models: {sorted(observed)}")
     snap = model_snapshot(cfg)
-    if snap.get("observed_response_model") not in observed:
+    snap_model = snap.get("observed_response_model")
+    if snap_model is None:
+        # A process can stop just after committing a valid response and before
+        # updating the JSON snapshot. Recover its identity from that exact cache.
+        snap["observed_response_model"] = next(iter(observed))
+        _write_snapshot(_model_snapshot_path(cfg), snap)
+    elif snap_model not in observed:
         raise RuntimeError("Cached JEV predictions do not match the experiment's model snapshot.")
 
 
@@ -267,6 +281,19 @@ def _jobs_unchecked(stage: str) -> pd.DataFrame:
 def _wanted_keys(stage: str) -> set[tuple[str, str, str, str]]:
     jobs = _jobs_unchecked(stage)
     return {(r.item_id, r.variant, prompt_hash(r.variant), _state_hash(r.text)) for r in jobs.itertuples(index=False)}
+
+
+def split_summary() -> dict[str, int]:
+    """Small human-readable summary of the exact, separately hashed split table."""
+    items_path = path("data", "processed", "items.csv.gz")
+    if not items_path.exists():
+        raise RuntimeError("Prepared items missing; run --stage data first")
+    items = pd.read_csv(items_path)
+    return {
+        "dev_items": int((items["split"] == "dev").sum()),
+        "test_items": int((items["split"] == "test").sum()),
+        "sensitivity_items": int(items["sensitivity"].sum()),
+    }
 
 
 def _current_prediction_rows(cfg: dict, stage: str) -> pd.DataFrame:
@@ -330,14 +357,23 @@ def _validate_approval(cfg: dict) -> dict:
         raise RuntimeError("Instrument approval was made under a different JEV model request or provider endpoint.")
     if payload.get("methods_plan_fingerprint") != methods_plan_fingerprint(cfg):
         raise RuntimeError("Prespecified analysis settings or methods changed after approval; review and re-approve.")
+    if payload.get("prespecified_methods") != methods_plan_details(cfg):
+        raise RuntimeError("Approved prespecified methods/configuration do not match the current plan.")
 
     current_prov = prepared_data_provenance(cfg)
     current_exp = _current_experiment(cfg)
     if payload.get("experiment_fingerprint") != current_exp or payload.get("data_provenance") != current_prov:
         raise RuntimeError("Instrument approval belongs to a different MFRC snapshot/split experiment; re-run dev review and approve again.")
+    if payload.get("split_summary") != split_summary():
+        raise RuntimeError("Approved MFRC split counts do not match the current prepared experiment.")
     if payload.get("model_snapshot") != model_snapshot_scientific(cfg):
         raise RuntimeError("JEV model identity changed relative to the approved development run.")
-    if payload.get("dev_evidence_hash") != dev_evidence_fingerprint(cfg):
+    evidence = {
+        "completed_calls": completed_calls(cfg, "dev"),
+        "expected_calls": expected_calls(cfg, "dev"),
+        "sha256": dev_evidence_fingerprint(cfg),
+    }
+    if evidence["completed_calls"] != evidence["expected_calls"] or payload.get("development_evidence") != evidence:
         raise RuntimeError("Instrument approval does not match the current complete development predictions.")
     return payload
 
@@ -383,9 +419,9 @@ def _post(cfg: dict, text: str, variant: str) -> dict:
     for attempt in range(retries + 1):
         try:
             response = requests.post(url, headers=headers, json=body, timeout=timeout)
-        except (requests.Timeout, requests.ConnectionError) as exc:
+        except requests.RequestException as exc:
             raise RuntimeError(
-                "JEV request ended ambiguously (timeout/connection error). It was not retried automatically; rerun deliberately."
+                "JEV request ended ambiguously (timeout/connection/response error). It was not retried automatically; rerun deliberately."
             ) from exc
         if response.status_code == 200:
             try:
@@ -393,9 +429,10 @@ def _post(cfg: dict, text: str, variant: str) -> dict:
             except ValueError as exc:
                 raise RuntimeError("JEV returned non-JSON success payload") from exc
             validate_response(payload)
-            _record_returned_model(cfg, payload["model"])
             return payload
-        if response.status_code == 429 and attempt < retries:
+        if response.status_code == 429:
+            if attempt >= retries:
+                raise RuntimeError("JEV rate-limit retries exhausted")
             wait = backoff * (2**attempt)
             retry_after = response.headers.get("Retry-After")
             if retry_after:
@@ -419,39 +456,44 @@ def infer(cfg: dict, *, stage: str, max_items: int | None = None) -> dict:
     exp = _current_experiment(cfg)
     provider = _provider_base_url(cfg)
     con = connect()
-    _assert_model_cache_consistency(con, cfg)
-    pending: list[tuple[str, str, str, str, str]] = []
-    for row in jobs.itertuples(index=False):
-        p_hash = prompt_hash(row.variant)
-        s_hash = _state_hash(row.text)
-        if not _cached(con, exp, provider, row.item_id, row.variant, p_hash, model, s_hash):
-            pending.append((row.item_id, row.text, row.variant, p_hash, s_hash))
+    try:
+        _assert_model_cache_consistency(con, cfg)
+        pending: list[tuple[str, str, str, str, str]] = []
+        for row in jobs.itertuples(index=False):
+            p_hash = prompt_hash(row.variant)
+            s_hash = _state_hash(row.text)
+            if not _cached(con, exp, provider, row.item_id, row.variant, p_hash, model, s_hash):
+                pending.append((row.item_id, row.text, row.variant, p_hash, s_hash))
 
-    if pending and (max_items is None or max_items > 0):
-        _preflight_model_available(cfg)
+        if pending and (max_items is None or max_items > 0):
+            _preflight_model_available(cfg)
 
-    new_calls = 0
-    for item_id, text, variant, p_hash, s_hash in pending:
-        if max_items is not None and new_calls >= max_items:
-            break
-        payload = _post(cfg, text, variant)
-        usage = payload["usage"]
-        con.execute(
-            """INSERT INTO predictions
-               (experiment_fingerprint, provider_base_url, item_id, variant, prompt_hash, requested_model, returned_model, state_sha256,
-                response_json, input_tokens, output_tokens, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                exp, provider, item_id, variant, p_hash, model, payload["model"], s_hash,
-                json.dumps(payload, ensure_ascii=False, sort_keys=True), int(usage["input_tokens"]),
-                int(usage["output_tokens"]), datetime.now(timezone.utc).isoformat(),
-            ),
-        )
-        con.commit()
-        new_calls += 1
-        if new_calls % 100 == 0:
-            print(f"JEV: {new_calls} new calls completed this run")
-    con.close()
+        new_calls = 0
+        for item_id, text, variant, p_hash, s_hash in pending:
+            if max_items is not None and new_calls >= max_items:
+                break
+            payload = _post(cfg, text, variant)
+            usage = payload["usage"]
+            con.execute(
+                """INSERT INTO predictions
+                   (experiment_fingerprint, provider_base_url, item_id, variant, prompt_hash, requested_model, returned_model, state_sha256,
+                    response_json, input_tokens, output_tokens, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    exp, provider, item_id, variant, p_hash, model, payload["model"], s_hash,
+                    json.dumps(payload, ensure_ascii=False, sort_keys=True), int(usage["input_tokens"]),
+                    int(usage["output_tokens"]), datetime.now(timezone.utc).isoformat(),
+                ),
+            )
+            # Persist every valid paid response before checking returned-model
+            # identity, so observable drift cannot cause that call to be paid again.
+            con.commit()
+            new_calls += 1
+            _record_returned_model(cfg, payload["model"])
+            if new_calls % 100 == 0:
+                print(f"JEV: {new_calls} new calls completed this run")
+    finally:
+        con.close()
     return {"new_calls": new_calls, "missing_before": len(pending), "remaining": max(0, len(pending) - new_calls)}
 
 

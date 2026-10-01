@@ -46,6 +46,8 @@ No rebalancing, stratification, or split change after seeing JEV output. A diffe
 
 Primary: one canonical bundle of six independent Noul questions sent together in one JEV request per comment. Development inference uses **canonical only**.
 
+Each `noul` value is interpreted as the provider-documented probability of Yes/True for that bounded foundation-presence question; it is not a measure of moral intensity.
+
 Sensitivity: one stricter wording bundle on the preselected held-out sensitivity subset only. It is specified before held-out inference and cannot replace canonical because it performs better.
 
 Before paid calls, record the configured request model's advertised metadata. Always request that configured model name, record the response model, and stop if observable model identity drifts within the experiment. Do not assume the response-model string is itself a requestable pin.
