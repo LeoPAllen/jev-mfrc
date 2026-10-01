@@ -6,12 +6,12 @@
 | Few coders per item | Require at least 3 for the primary sample; interpret shares as empirical references, not precise latent probabilities. |
 | Human-disagreement entropy has coarse resolution with 3 coders | Treat entropy correlation as a diagnostic association; report coder-count distribution and avoid claims of precise latent ambiguity. |
 | Disagreement has multiple causes | Do not equate disagreement with ambiguity; discuss perspective, noise, missing context, and construct boundaries. |
-| Publication/live-data counts differ | Audit the exact public snapshot and report differences rather than forcing publication counts. |
+| Publication/live-data counts differ | The current HF release/card and published paper contain inconsistent corpus-level counts. Record the resolved revision and SHA-256 for the exact snapshot and use that snapshot as the computational source of truth. |
 | Raw snapshot is partial or changes after download | Verify its SHA-256 and source manifest on every use; stop on drift or incompleteness instead of silently refreshing it. |
 | No canonical public comment ID | Reconstruct source-specific items from `(bucket, subreddit, text)`. |
 | Same-cell identical text may represent distinct physical comments | The public release cannot distinguish them; reconstruction treats the tuple as one item and reports this as a limitation rather than inventing identity. |
 | Exact text appears in multiple source cells | Preserve each source-specific item but group identical text onto the same dev/test side to prevent literal leakage. |
-| Duplicate annotation rows | Drop/count exact duplicates; conflicting item+annotator records stop for inspection. |
+| Repeated annotation rows | Count/remove literal exact duplicates separately; collapse same-annotator repeats only when parsed label sets and confidence match. Exclude the full item for any remaining same-annotator conflict, while preserving disagreement across different annotators. |
 | Multi-label parsing | Require exact focal-token matches after trimming; audit observed tokens and reject unexpected focal spellings/case. |
 | Confidence vocabulary changes | Use observed known levels; unknown values stop rather than being guessed. |
 | Class imbalance | Report foundation-specific diagnostics; do not make overall accuracy the main metric. |

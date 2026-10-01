@@ -66,8 +66,11 @@ def test_prepare_items_excludes_two_annotator_and_is_row_order_stable(tmp_path, 
     first = pd.read_csv(a / "data/processed/items.csv.gz").sort_values("item_id").reset_index(drop=True)
     audit = json.loads((a / "data/processed/audit.json").read_text())
     assert len(first) == 5
-    assert audit["excluded_lt_min_annotators"] == 1
+    assert audit["items_excluded_lt_min_annotators"] == 1
     assert audit["exact_duplicate_rows_removed"] == 1
+    assert audit["semantic_annotation_duplicates_removed"] == 0
+    assert audit["raw_rows_before_exact_dedup"] == len(raw)
+    assert audit["raw_rows_after_exact_dedup"] == len(raw) - 1
     excluded = pd.read_csv(a / "data/processed/excluded_lt_min_annotators.csv.gz")
     assert len(excluded) == 1
     assert excluded["text"].tolist() == ["c"]
@@ -105,15 +108,139 @@ def test_raw_checksum_drift_fails(tmp_path, monkeypatch):
         data.prepare_items(_cfg(), force=True)
 
 
-def test_conflicting_item_annotator_fails(tmp_path, monkeypatch):
+def test_conflicts_exclude_whole_items_preserve_other_items_and_audit_counts(tmp_path, monkeypatch):
+    baseline_root = tmp_path / "baseline"
+    ordered_root = tmp_path / "ordered"
+    shuffled_root = tmp_path / "shuffled"
+    baseline_raw = _raw_rows()
+
+    literal_duplicate = baseline_raw.loc[
+        (baseline_raw["text"] == "a") & (baseline_raw["annotator"] == "ann0")
+    ].iloc[[0]]
+    reordered_semantic_duplicate = baseline_raw.loc[
+        (baseline_raw["text"] == "f") & (baseline_raw["annotator"] == "ann0")
+    ].iloc[[0]].copy()
+    reordered_semantic_duplicate["annotation"] = "Equality,Care"
+    conflicting_duplicate = reordered_semantic_duplicate.copy()
+    conflicting_duplicate["annotation"] = "Care"
+    raw = pd.concat(
+        [baseline_raw, literal_duplicate, reordered_semantic_duplicate, conflicting_duplicate],
+        ignore_index=True,
+    )
+    _write_snapshot(baseline_root, baseline_raw)
+    _write_snapshot(ordered_root, raw)
+    _write_snapshot(shuffled_root, raw.sample(frac=1, random_state=811))
+
+    outputs = {}
+    audits = {}
+    for name, root in (("baseline", baseline_root), ("ordered", ordered_root), ("shuffled", shuffled_root)):
+        monkeypatch.setattr(data, "path", lambda *p, root=root: root.joinpath(*p))
+        output_path = data.prepare_items(_cfg(), force=True)
+        outputs[name] = pd.read_csv(output_path).sort_values("item_id").reset_index(drop=True)
+        audits[name] = json.loads((root / "data/processed/audit.json").read_text())
+
+    audit = audits["ordered"]
+    assert audit["raw_rows_before_exact_dedup"] == 20
+    assert audit["exact_duplicate_rows_removed"] == 1
+    assert audit["raw_rows_after_exact_dedup"] == 19
+    assert audit["semantic_annotation_duplicate_groups"] == 1
+    assert audit["semantic_annotation_duplicates_removed"] == 1
+    assert audit["genuine_conflicting_item_annotator_groups"] == 1
+    assert audit["items_excluded_for_conflicting_same_annotator_records"] == 1
+    assert audit["rows_excluded_for_conflicting_items"] == 4
+    assert audit["items_remaining_after_conflict_exclusion"] == 5
+    assert audit["retained_item_annotator_pairs_unique"] is True
+    assert audit["items_excluded_lt_min_annotators"] == 1
+    assert audit["unique_items_all"] == 5
+    assert audit["eligible_items"] == 4
+
+    processed = outputs["ordered"]
+    assert len(processed) == 4
+    assert processed["item_id"].is_unique
+    assert "f" not in set(processed["text"])
+    assert processed.loc[processed["text"] == "a", "n_annotators"].iloc[0] == 3
+    # Disagreement between different annotators remains in the human vote share.
+    assert processed.loc[processed["text"] == "a", "human_care"].iloc[0] == pytest.approx(2 / 3)
+    assert processed.loc[processed["text"] == "b", "human_equality"].iloc[0] == pytest.approx(2 / 3)
+    excluded_min = pd.read_csv(ordered_root / "data/processed/excluded_lt_min_annotators.csv.gz")
+    assert excluded_min["text"].tolist() == ["c"]
+
+    # Conflict exclusion changes only the affected item's presence; other item
+    # summaries stay the same before and after the fix.
+    summary_cols = [
+        "item_id", "text", "subreddit", "bucket", "n_annotators",
+        "human_confidence_mean", "content_id",
+        "human_care", "human_equality", "human_proportionality",
+        "human_loyalty", "human_authority", "human_purity",
+    ]
+    baseline_all = pd.concat([
+        outputs["baseline"],
+        pd.read_csv(baseline_root / "data/processed/excluded_lt_min_annotators.csv.gz"),
+    ], ignore_index=True)[summary_cols].sort_values("item_id").reset_index(drop=True)
+    fixed_all = pd.concat([
+        outputs["ordered"],
+        pd.read_csv(ordered_root / "data/processed/excluded_lt_min_annotators.csv.gz"),
+    ], ignore_index=True)[summary_cols].sort_values("item_id").reset_index(drop=True)
+    affected_id = data._stable_item_id("b3", "s3", "f")
+    baseline_all = baseline_all.loc[baseline_all["item_id"] != affected_id].reset_index(drop=True)
+    pd.testing.assert_frame_equal(baseline_all, fixed_all)
+
+    pd.testing.assert_frame_equal(outputs["ordered"], outputs["shuffled"])
+    for field in (
+        "raw_rows_before_exact_dedup", "exact_duplicate_rows_removed",
+        "semantic_annotation_duplicate_groups", "semantic_annotation_duplicates_removed",
+        "genuine_conflicting_item_annotator_groups",
+        "items_excluded_for_conflicting_same_annotator_records",
+        "rows_excluded_for_conflicting_items", "items_remaining_after_conflict_exclusion",
+        "retained_item_annotator_pairs_unique", "items_excluded_lt_min_annotators",
+        "eligible_items", "dev_items", "test_items",
+    ):
+        assert audits["ordered"][field] == audits["shuffled"][field]
+
+
+def test_semantic_annotation_duplicates_collapse_and_are_row_order_stable(tmp_path, monkeypatch):
+    a = tmp_path / "a"; b = tmp_path / "b"
+    raw = _raw_rows()
+    duplicate = raw.loc[(raw["text"] == "f") & (raw["annotation"] == "Care,Equality")].iloc[[0]].copy()
+    duplicate["annotation"] = "Equality,Care"
+    raw_with_semantic_duplicate = pd.concat([raw, duplicate], ignore_index=True)
+    _write_snapshot(a, raw_with_semantic_duplicate)
+    _write_snapshot(b, raw_with_semantic_duplicate.sample(frac=1, random_state=17))
+
+    monkeypatch.setattr(data, "path", lambda *p: a.joinpath(*p))
+    first_path = data.prepare_items(_cfg(), force=True)
+    first = pd.read_csv(first_path).sort_values("item_id").reset_index(drop=True)
+    audit = json.loads((a / "data/processed/audit.json").read_text())
+    assert audit["exact_duplicate_rows_removed"] == 0
+    assert audit["semantic_annotation_duplicates_removed"] == 1
+    assert audit["semantic_annotation_duplicate_groups"] == 1
+    assert audit["genuine_conflicting_item_annotator_groups"] == 0
+    assert audit["items_excluded_for_conflicting_same_annotator_records"] == 0
+    assert audit["raw_rows_after_exact_dedup"] == len(raw_with_semantic_duplicate)
+    assert first.loc[first["text"] == "f", "n_annotators"].iloc[0] == 3
+    assert first.loc[first["text"] == "f", "human_care"].iloc[0] == pytest.approx(2 / 3)
+    assert first.loc[first["text"] == "f", "human_equality"].iloc[0] == pytest.approx(2 / 3)
+
+    monkeypatch.setattr(data, "path", lambda *p: b.joinpath(*p))
+    second_path = data.prepare_items(_cfg(), force=True)
+    second = pd.read_csv(second_path).sort_values("item_id").reset_index(drop=True)
+    pd.testing.assert_frame_equal(first, second)
+
+
+def test_same_annotation_with_different_confidence_excludes_the_item(tmp_path, monkeypatch):
     monkeypatch.setattr(data, "path", lambda *p: tmp_path.joinpath(*p))
     raw = _raw_rows()
-    duplicate = raw.iloc[[0]].copy(); duplicate["annotation"] = "Purity"
+    duplicate = raw.iloc[[0]].copy()
+    duplicate["confidence"] = "Somewhat Confident"
     _write_snapshot(tmp_path, pd.concat([raw, duplicate], ignore_index=True))
-    with pytest.raises(ValueError, match="item/annotator") as exc:
-        data.prepare_items(_cfg(), force=True)
-    assert "Care" in str(exc.value)
-    assert "Purity" in str(exc.value)
+    data.prepare_items(_cfg(), force=True)
+    audit = json.loads((tmp_path / "data/processed/audit.json").read_text())
+    assert audit["semantic_annotation_duplicates_removed"] == 0
+    assert audit["genuine_conflicting_item_annotator_groups"] == 1
+    assert audit["items_excluded_for_conflicting_same_annotator_records"] == 1
+    assert audit["rows_excluded_for_conflicting_items"] == 4
+    items = pd.read_csv(tmp_path / "data/processed/items.csv.gz")
+    assert "a" not in set(items["text"])
 
 
 def test_primary_sample_requires_at_least_three_annotators(tmp_path, monkeypatch):

@@ -2,6 +2,8 @@
 
 ## Representation
 
+Literal exact duplicate rows are counted and removed separately. Repeated judgments by one annotator are collapsed only when the parsed unordered label sets and confidence agree. The current official snapshot has 42 items with irreconcilable same-annotator repeats; all rows for those items are excluded rather than adjudicated. Disagreement across annotators is retained in the trained-rater reference distribution.
+
 For each eligible comment `i` and foundation `f`:
 
 - `h_if`: fraction of retained trained annotators selecting the foundation;

@@ -25,7 +25,7 @@ This build state is a convenience, not a scientific gate. The study runner never
 - Derived item tables rebuild deterministically each time the data stage runs. They are cheap and do not need a stale-cache subsystem.
 - The experiment fingerprint binds the raw snapshot, relevant dataset/split/inclusion settings, and exact processed-item content.
 - Exact text repeated across source cells is preserved as separate source-specific items but grouped onto the same dev/test side.
-- Exact duplicate annotation rows are removed and counted; conflicting reconstructed item+annotator rows stop for inspection.
+- Exact duplicate annotation rows are counted and removed separately from semantically equivalent same-annotator repeats. If contradictory repeats remain, exclude the full reconstructed item; assert retained item/annotator uniqueness before calculating human shares.
 
 ## Paid-call resumability
 
@@ -56,6 +56,6 @@ It does **not** bind arbitrary implementation-file bytes, report formatting, or 
 
 ## Fail loudly on what can invalidate the study
 
-Examples: raw checksum drift, missing/ambiguous item identity, conflicting annotation records, unknown focal-label spelling, exact-text split leakage, malformed JEV probabilities, incomplete required inference, model drift, or approval mismatch.
+Examples: raw checksum drift, missing/ambiguous item identity, retained item/annotator duplication, unknown focal-label spelling, exact-text split leakage, malformed JEV probabilities, incomplete required inference, model drift, or approval mismatch.
 
 Do not fail simply because publication prose and the live public dataset differ in counts; audit and report the observed snapshot.

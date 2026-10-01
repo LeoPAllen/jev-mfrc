@@ -15,7 +15,7 @@ CONFIDENCE = {"Not Confident": 0.0, "Somewhat Confident": 0.5, "Confident": 1.0}
 ITEM_IDENTITY_COLUMNS = ["bucket", "subreddit", "text"]
 ANNOTATION_RECORD_COLUMNS = [*ITEM_IDENTITY_COLUMNS, "annotator"]
 PRIMARY_MIN_ANNOTATORS = 3
-DATA_PIPELINE_VERSION = 7
+DATA_PIPELINE_VERSION = 9
 
 
 def _sha256_file(p: Path) -> str:
@@ -53,6 +53,10 @@ def _labels(value: object) -> set[str]:
     if pd.isna(value):
         return set()
     return {part.strip() for part in str(value).split(",") if part.strip()}
+
+
+def _annotation_signature(value: object) -> tuple[str, ...]:
+    return tuple(sorted(_labels(value)))
 
 
 def _stable_item_id(bucket: str, subreddit: str, text: str) -> str:
@@ -231,24 +235,26 @@ def prepare_items(cfg: dict, *, force: bool = False) -> Path:
     original_rows = len(raw)
     exact_duplicate_rows = int(raw.duplicated().sum())
     raw = raw.drop_duplicates().copy()
+    rows_after_exact_dedup = len(raw)
     raw["item_id"] = [
         _stable_item_id(b, s, t)
         for b, s, t in zip(raw["bucket"], raw["subreddit"], raw["text"])
     ]
 
-    dup = raw.duplicated(["item_id", "annotator"], keep=False)
-    if dup.any():
-        bad = raw.loc[dup, ["item_id", "annotator", "annotation", "confidence"]].sort_values(["item_id", "annotator"])
-        raise ValueError(
-            "Conflicting or repeated item/annotator records remain after exact deduplication:\n"
-            + bad.head(12).to_string(index=False)
-        )
+    raw["annotation_signature"] = raw["annotation"].map(_annotation_signature)
+    raw["annotation"] = raw["annotation_signature"].map(lambda labels: ",".join(labels))
+    semantic_key = ["item_id", "annotator", "annotation_signature", "confidence"]
+    semantic_duplicate_mask = raw.duplicated(semantic_key, keep="first")
+    semantic_annotation_duplicates_removed = int(semantic_duplicate_mask.sum())
+    semantic_annotation_duplicate_groups = int(
+        raw.loc[semantic_duplicate_mask, ["item_id", "annotator"]].drop_duplicates().shape[0]
+    )
+    raw = raw.loc[~semantic_duplicate_mask].drop(columns="annotation_signature").copy()
 
     observed_conf = set(raw["confidence"].astype(str).unique()) - {""}
     unknown_conf = observed_conf - set(CONFIDENCE)
     if unknown_conf:
         raise ValueError(f"Unknown confidence values: {sorted(unknown_conf)}")
-    raw["confidence_num"] = raw["confidence"].map(CONFIDENCE)
 
     atomic_labels = sorted({label for value in raw["annotation"] for label in _labels(value)})
     if not atomic_labels:
@@ -262,6 +268,24 @@ def prepare_items(cfg: dict, *, force: bool = False) -> Path:
             raise ValueError(f"Focal label {f.title()!r} is absent from the MFRC snapshot")
         if variants != {f.title()}:
             raise ValueError(f"Unexpected case/spelling variant for focal label {f}: {sorted(variants)}")
+
+    # A same-annotator repeat with a different label set or confidence leaves the
+    # item's human reference ambiguous. Exclude every annotation for that item.
+    repeated = raw.duplicated(["item_id", "annotator"], keep=False)
+    conflicting_groups = raw.loc[repeated, ["item_id", "annotator"]].drop_duplicates()
+    conflicting_item_ids = set(conflicting_groups["item_id"])
+    genuine_conflicting_item_annotator_groups = int(len(conflicting_groups))
+    items_before_conflict_exclusion = int(raw["item_id"].nunique())
+    rows_excluded_for_conflicting_items = int(raw["item_id"].isin(conflicting_item_ids).sum())
+    raw = raw.loc[~raw["item_id"].isin(conflicting_item_ids)].copy()
+    retained_item_annotator_pairs_unique = not raw.duplicated(["item_id", "annotator"]).any()
+    if not retained_item_annotator_pairs_unique:
+        raise AssertionError("Retained MFRC data contain repeated item/annotator records")
+
+    items_remaining_after_conflict_exclusion = int(raw["item_id"].nunique())
+    raw["confidence_num"] = raw["confidence"].map(CONFIDENCE)
+
+    for f in FOUNDATIONS:
         label = f.title()
         raw[f"human_{f}"] = raw["annotation"].map(lambda x, lab=label: float(lab in _labels(x)))
 
@@ -328,11 +352,19 @@ def prepare_items(cfg: dict, *, force: bool = False) -> Path:
         "data_config_fingerprint": config_fp,
         "processed_items_sha256": items_sha,
         "raw_rows_before_exact_dedup": int(original_rows),
-        "raw_rows_after_exact_dedup": int(len(raw)),
+        "raw_rows_after_exact_dedup": int(rows_after_exact_dedup),
         "exact_duplicate_rows_removed": exact_duplicate_rows,
+        "semantic_annotation_duplicates_removed": semantic_annotation_duplicates_removed,
+        "semantic_annotation_duplicate_groups": semantic_annotation_duplicate_groups,
+        "genuine_conflicting_item_annotator_groups": genuine_conflicting_item_annotator_groups,
+        "items_excluded_for_conflicting_same_annotator_records": len(conflicting_item_ids),
+        "rows_excluded_for_conflicting_items": rows_excluded_for_conflicting_items,
+        "items_before_conflict_exclusion": items_before_conflict_exclusion,
+        "items_remaining_after_conflict_exclusion": items_remaining_after_conflict_exclusion,
+        "retained_item_annotator_pairs_unique": retained_item_annotator_pairs_unique,
+        "items_excluded_lt_min_annotators": int(len(excluded)),
         "unique_items_all": int(len(items)),
         "eligible_items": int(len(eligible)),
-        "excluded_lt_min_annotators": int(len(excluded)),
         "min_annotators_required": min_annotators,
         "annotator_count_distribution_all": {str(k): int(v) for k, v in sorted(Counter(items["n_annotators"]).items())},
         "dev_items_target": dev_target,

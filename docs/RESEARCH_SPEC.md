@@ -10,6 +10,8 @@ Use the Moral Foundations Reddit Corpus (MFRC), public Hugging Face dataset `USC
 
 On first use, resolve the requested dataset revision and save one local raw snapshot with its SHA-256 and resolved revision. Reuse that snapshot only when its checksum and source metadata verify; stop on a missing manifest, partial snapshot, checksum drift, or config mismatch. Do not silently refresh or replace raw data.
 
+The current Hugging Face release/card and published paper report inconsistent corpus-level counts. For computation, the exact local snapshot is the source of truth: this run resolved `main` to revision `ddc21d2f03e156732fd1ba95a51c4c29f07975be` with raw-file SHA-256 `ad5c1e695a7c52e8d92ee452c3bca66a3400c76880a2b424627902046bb6511d`. In this official `train_dedup` snapshot, 42 reconstructed items contain irreconcilable repeated judgments by the same annotator; exclude each entire item rather than adjudicating which judgment to retain. Preserve legitimate disagreement across different annotators.
+
 Primary constructs are six nonexclusive binary domains: Care, Equality, Proportionality, Loyalty, Authority, and Purity. Thin Morality and Implicit/Explicit Morality are outside this MVP.
 
 MFRC deliberately enriched morally loaded content. Preserve both `bucket` and `subreddit`; downstream source cells are `(bucket, subreddit)`. Source-cell estimates are therefore recovery of this selected MFRC sample, not natural Reddit prevalence.
@@ -21,7 +23,7 @@ Because the release has no lower-level comment identifier, two physically distin
 
 Exact text can legitimately appear in multiple source cells. Preserve those source-specific items, but assign every item sharing the exact same text to the same dev/test side so literal text leakage cannot cross the split.
 
-After exact-row deduplication, require at least 3 unique annotators per reconstructed item. Preserve excluded items in an audit table. If one reconstructed item has conflicting rows for the same annotator, stop rather than guess.
+Count and remove literal exact duplicate rows separately. Within an item/annotator pair, collapse records only when their parsed unordered label sets and confidence match. Exclude every row for an item with any remaining repeated item/annotator pair, then require at least 3 unique annotators for the primary sample. The processed-data audit records both duplicate counts and the numbers of conflicting items/rows excluded. Disagreement across different annotators remains in the human vote shares.
 
 ## Human reference
 

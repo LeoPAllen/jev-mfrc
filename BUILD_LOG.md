@@ -27,3 +27,11 @@ Clarified fresh setup and resumable study phases; kept `./continue_build.sh` as 
 2026-10-01 — Localized review and provenance fixes
 
 Ignored the raw metadata and generated audit JSON, namespaced JEV model snapshots by experiment/provider/request, and expanded deterministic canonical-only development review with explicit human tie handling and annotator counts. Clarified the optional auto-commit wrapper in the README and updated the majority-category definition. Focused suite passed (57 JEV, metrics, and data tests); no paid calls or held-out inference were run, and no unresolved issue remains.
+
+2026-10-01 — MFRC semantic duplicate ingestion fix
+
+Canonicalized annotation label sets for duplicate detection, added semantic-removal audit counts, and retained strict diagnostics for genuine item/annotator conflicts. The raw snapshot audit found 250 semantically duplicate groups, 42 different-label-set conflict groups, and no confidence-only groups (0 literal exact duplicates). `pytest -q tests/test_data.py` passed (21 tests). The local data stage correctly remains blocked by the 42 genuine conflicts; raw data were not modified.
+
+2026-10-01 — MFRC contradictory duplicate item exclusion
+
+Kept literal and semantic duplicate counts separate, collapsed only same-label-set/same-confidence repeats, and excluded all rows for each of the 42 affected items. Added retained item/annotator uniqueness enforcement, audit counts, pipeline version 9, and concise methods/data/risks documentation with the resolved snapshot revision and SHA. Real `./run.sh --stage data` passed on 53,827 raw rows: 250 semantic duplicates removed, 42 conflict groups/items and 170 rows excluded, 17,844 items remaining before the minimum-annotator filter, and 17,709 eligible items (1,000 dev; 16,709 test). Full suite passed (75 tests) and documentation gate passed. Raw data were unchanged; no JEV/API calls; no unresolved issue.
