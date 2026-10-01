@@ -74,7 +74,6 @@ def _foundation_metrics(df: pd.DataFrame, variant: str) -> pd.DataFrame:
             "variant": variant,
             "foundation": f,
             "n_comments": len(df),
-            "human_disagreement_rate": float(((h > 0) & (h < 1)).mean()),
             "entropy_spearman": _spearman(binary_entropy(h), binary_entropy(p)),
             "squared_loss_probability": float(soft_sq.mean()),
             "squared_loss_hard": float(hard_sq.mean()),
@@ -82,7 +81,6 @@ def _foundation_metrics(df: pd.DataFrame, variant: str) -> pd.DataFrame:
             "mae_probability_to_human_share": float(soft_abs.mean()),
             "mae_hard_to_human_share": float(hard_abs.mean()),
             "hard_minus_probability_absolute_loss": float((hard_abs - soft_abs).mean()),
-            "hard_agreement_to_majority": float(np.mean(hard == (h >= 0.5))),
         })
     return pd.DataFrame(rows)
 
@@ -145,21 +143,30 @@ def _uncertainty_bootstrap(df: pd.DataFrame, reps: int, seed: int) -> dict:
     }
     estimate = float(np.nanmean(list(by_f.values())))
     rng = np.random.default_rng(seed + 1)
-    vals = []
+    boot = {f: [] for f in FOUNDATIONS}
     n = len(df)
     for _ in range(reps):
         sample = df.iloc[rng.integers(0, n, n)]
-        cors = [
-            _spearman(binary_entropy(sample[f"human_{f}"]), binary_entropy(sample[f"p_{f}"]))
-            for f in FOUNDATIONS
-        ]
-        vals.append(float(np.nanmean(cors)))
-    arr = np.asarray(vals)
+        for f in FOUNDATIONS:
+            boot[f].append(_spearman(binary_entropy(sample[f"human_{f}"]), binary_entropy(sample[f"p_{f}"])))
+
+    def ci(values):
+        finite = np.asarray(values, dtype=float)
+        finite = finite[np.isfinite(finite)]
+        if not len(finite):
+            return [float("nan"), float("nan")]
+        return [float(np.quantile(finite, 0.025)), float(np.quantile(finite, 0.975))]
+
+    macro = [float(np.nanmean([boot[f][i] for f in FOUNDATIONS])) for i in range(reps)]
+    macro_finite = np.asarray(macro, dtype=float)
+    macro_finite = macro_finite[np.isfinite(macro_finite)]
+    macro_ci = ci(macro_finite)
     return {
         "foundation_spearman": by_f,
+        "foundation_ci95": {f: ci(boot[f]) for f in FOUNDATIONS},
         "macro_mean": estimate,
-        "ci95_low": float(np.nanquantile(arr, 0.025)),
-        "ci95_high": float(np.nanquantile(arr, 0.975)),
+        "ci95_low": macro_ci[0],
+        "ci95_high": macro_ci[1],
         "reps": int(reps),
     }
 
@@ -184,16 +191,14 @@ def _selective_review(df: pd.DataFrame, budgets: list[float], random_reps: int, 
         if k:
             target_p[order[:k], :] = h[order[:k], :]
         target_mse = float(np.mean((target_p - h) ** 2))
-        target_mae = float(np.abs(target_p - h).mean())
-        rmse, rmae = [], []
+        random_mse = []
         for _ in range(random_reps):
             idx = rng.choice(len(df), size=k, replace=False) if k else np.array([], dtype=int)
             rp = p.copy()
             if k:
                 rp[idx, :] = h[idx, :]
-            rmse.append(float(np.mean((rp - h) ** 2)))
-            rmae.append(float(np.abs(rp - h).mean()))
-        mse_arr = np.asarray(rmse); mae_arr = np.asarray(rmae)
+            random_mse.append(float(np.mean((rp - h) ** 2)))
+        mse_arr = np.asarray(random_mse)
         rows.append({
             "budget": float(budget),
             "comments_reviewed": k,
@@ -202,11 +207,6 @@ def _selective_review(df: pd.DataFrame, budgets: list[float], random_reps: int, 
             "random_mse_ci95_low": float(np.quantile(mse_arr, .025)),
             "random_mse_ci95_high": float(np.quantile(mse_arr, .975)),
             "targeted_minus_random_mse": float(target_mse - mse_arr.mean()),
-            "targeted_mae": target_mae,
-            "random_mae_mean": float(mae_arr.mean()),
-            "random_mae_ci95_low": float(np.quantile(mae_arr, .025)),
-            "random_mae_ci95_high": float(np.quantile(mae_arr, .975)),
-            "targeted_minus_random_mae": float(target_mae - mae_arr.mean()),
         })
     return pd.DataFrame(rows)
 
@@ -236,7 +236,6 @@ def _cell_loss(cells: pd.DataFrame, estimate_col: str) -> dict:
     return {
         "mae_unweighted": float(err.mean()),
         "mae_cell_size_weighted": float(np.average(err, weights=weights)),
-        "rmse_unweighted": float(np.sqrt(np.mean((cells[estimate_col] - cells["human_share"]) ** 2))),
     }
 
 
@@ -284,7 +283,6 @@ def _cell_recovery(df: pd.DataFrame, budgets: list[float], random_reps: int, see
             "budget": float(budget),
             "mae_unweighted": float(np.mean([x["mae_unweighted"] for x in random_losses])),
             "mae_cell_size_weighted": float(np.mean([x["mae_cell_size_weighted"] for x in random_losses])),
-            "rmse_unweighted": float(np.mean([x["rmse_unweighted"] for x in random_losses])),
         })
     return cells, pd.DataFrame(summaries)
 
@@ -348,7 +346,8 @@ def analyze(cfg: dict) -> dict:
 
     tables = path("results", "tables"); figs = path("results", "figures")
     tables.mkdir(parents=True, exist_ok=True); figs.mkdir(parents=True, exist_ok=True)
-    fm = pd.concat([_foundation_metrics(canonical, "canonical"), _foundation_metrics(strict, "strict")], ignore_index=True)
+    # Strict wording is summarized only as the prespecified sensitivity check below.
+    fm = _foundation_metrics(canonical, "canonical")
     fm.to_csv(tables / "foundation_metrics.csv", index=False)
 
     review = _selective_review(canonical, cfg["analysis"]["review_budgets"], int(cfg["analysis"]["random_review_reps"]), int(cfg["seed"]))

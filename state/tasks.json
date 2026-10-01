@@ -21,7 +21,8 @@
     {
       "id": "04",
       "name": "analysis_and_simulation",
-      "status": "pending"
+      "status": "complete",
+      "completed_at": "2026-10-01T16:03:36.665804+00:00"
     },
     {
       "id": "05",

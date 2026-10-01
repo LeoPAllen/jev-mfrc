@@ -15,3 +15,7 @@ Preserved literal raw strings, strengthened exact tuple IDs and text-group split
 2026-10-01 — Task 03 instrument and JEV client
 
 Aligned canonical domains to MFRC Coding Guide-2, made the approval manifest reviewable and bound to the exact split, both prompt hashes, frozen model metadata, complete canonical dev evidence, and methods/config, and preserved valid paid responses before drift checks for safe resumption. 26 focused prompt/client tests passed; no live provider calls were made. Human semantic approval remains required.
+
+2026-10-01 — Task 04 analysis and review simulation
+
+Kept outputs aligned with the four core analyses, added foundation and macro entropy intervals from shared comment-cluster resamples, and removed unprespecified review MAE, cell RMSE, majority-agreement, and standalone strict-variant outputs. Clarified the coder-level Brier identity, oracle review limits, and sample-cell interpretation in methods and summary reporting. `pytest -q tests/test_metrics.py` passed (13 tests); no unresolved issues.

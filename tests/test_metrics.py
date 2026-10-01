@@ -9,6 +9,8 @@ from jev_mfrc.metrics import (
     _cell_recovery,
     _selective_review,
     _sensitivity,
+    _spearman,
+    _uncertainty_bootstrap,
     binary_entropy,
     squared_loss_to_share,
 )
@@ -62,6 +64,7 @@ def test_selective_review_is_reproducible_and_budgeted_by_comment():
     assert row20["comments_reviewed"] == 4
     assert row20["targeted_mse"] <= row0["targeted_mse"]
     assert "random_mse_ci95_low" in a and "targeted_minus_random_mse" in a
+    assert "targeted_mae" not in a and "random_mae_mean" not in a
 
 
 def test_bootstrap_loss_deltas_reproducible_and_has_both_losses():
@@ -75,6 +78,41 @@ def test_bootstrap_loss_deltas_reproducible_and_has_both_losses():
     assert legacy["ci95_low"] <= legacy["estimate"] <= legacy["ci95_high"]
 
 
+def test_uncertainty_bootstrap_resamples_comments_together_across_foundations():
+    rows = []
+    for i in range(40):
+        row = {"item_id": str(i)}
+        for j, f in enumerate(FOUNDATIONS):
+            row[f"human_{f}"] = ((i + j) % 5) / 4
+            row[f"p_{f}"] = ((i * 2 + 3 * j + 1) % 5) / 4
+        rows.append(row)
+    df = pd.DataFrame(rows)
+    reps, seed = 40, 7
+    actual = _uncertainty_bootstrap(df, reps, seed)
+
+    # Independently reconstruct the bootstrap with one shared row sample for all six codes.
+    rng = np.random.default_rng(seed + 1)
+    by_foundation = {f: [] for f in FOUNDATIONS}
+    macro = []
+    for _ in range(reps):
+        sample = df.iloc[rng.integers(0, len(df), len(df))]
+        cors = {
+            f: _spearman(binary_entropy(sample[f"human_{f}"]), binary_entropy(sample[f"p_{f}"]))
+            for f in FOUNDATIONS
+        }
+        for f, value in cors.items():
+            by_foundation[f].append(value)
+        macro.append(float(np.nanmean(list(cors.values()))))
+
+    for f in FOUNDATIONS:
+        values = np.asarray(by_foundation[f])
+        np.testing.assert_allclose(actual["foundation_ci95"][f], np.quantile(values[np.isfinite(values)], [0.025, 0.975]))
+    np.testing.assert_allclose(
+        [actual["ci95_low"], actual["ci95_high"]],
+        np.quantile(np.asarray(macro)[np.isfinite(macro)], [0.025, 0.975]),
+    )
+
+
 def test_cell_recovery_contains_review_hybrids_and_weighted_losses():
     df = _analysis_df(30)
     cells, summary = _cell_recovery(df, [0.0, 0.2], 10, 42)
@@ -82,6 +120,7 @@ def test_cell_recovery_contains_review_hybrids_and_weighted_losses():
     assert "random_mean_20pct" in cells
     assert {"soft", "hard", "targeted", "random_mean"}.issubset(set(summary["method"]))
     assert "mae_cell_size_weighted" in summary
+    assert "rmse_unweighted" not in summary
 
 
 def test_sensitivity_reports_prespecified_comparisons():
@@ -135,6 +174,10 @@ def test_write_summary_reads_current_source_cell_key(tmp_path, monkeypatch):
     text = (tmp_path / "results/summary.md").read_text()
     assert "Soft source-cell MAE: 0.100000" in text
     assert "Hard source-cell MAE: 0.200000" in text
+    assert "not itself a Brier score" in text
+    assert "within-comment coder-variance term cancels" in text
+    assert "oracle / idealized reference-replacement simulation" in text
+    assert "do not estimate population prevalence or causal effects" in text
 
 
 def test_dev_review_does_not_truncate_selected_comment_text(tmp_path, monkeypatch):

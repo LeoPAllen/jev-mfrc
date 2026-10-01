@@ -77,7 +77,15 @@ def write_summary() -> None:
         f"- Soft source-cell MAE: {_fmt(payload['source_sample_cell_recovery']['soft_mae'], 6)}",
         f"- Hard source-cell MAE: {_fmt(payload['source_sample_cell_recovery']['hard_mae'], 6)}",
         "",
-        "See results/tables/ for foundation-specific diagnostics and selective-review results.",
+        "The squared loss is to the human vote share, not itself a Brier score. The hard-minus-probability squared-loss difference equals the same difference averaged over retained individual binary coder judgments because the within-comment coder-variance term cancels.",
+        "",
+        "Selective-review results are an oracle / idealized reference-replacement simulation: reviewed comments receive their human vote shares. They do not estimate labor time or minutes saved.",
+        "",
+        "Source-cell results describe recovery of observed MFRC sample-cell means in this selected sample. They do not estimate population prevalence or causal effects.",
+        "",
+        "Canonical wording remains primary; strict wording is reported only as the prespecified held-out sensitivity check.",
+        "",
+        "See results/tables/ for foundation-specific diagnostics, absolute-loss secondary results, and selective-review results.",
     ]
     out = path("results", "summary.md")
     out.parent.mkdir(parents=True, exist_ok=True)

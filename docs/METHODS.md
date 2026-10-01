@@ -14,7 +14,7 @@ Use natural-log binary entropy with `H(0)=H(1)=0`. Entropy is a symmetric uncert
 
 For each foundation separately, compute Spearman correlation across held-out comments between `H(p_if)` and `H(h_if)`. The primary summary is the unweighted macro mean of the six correlations.
 
-Bootstrap the primary summary by resampling comments with replacement; in every draw keep all six foundations for a selected comment together. Report percentile 95% intervals. This avoids treating six codes from the same comment as independent and avoids a pooled correlation being driven by cross-foundation base rates.
+Bootstrap by resampling comments with replacement; in every draw keep all six foundations for a selected comment together. Report percentile 95% intervals for the foundation correlations and their unweighted macro mean. The macro mean is primary; foundation-specific estimates are diagnostics. This avoids treating six codes from the same comment as independent and avoids a pooled correlation being driven by cross-foundation base rates.
 
 Secondary: average JEV entropy across foundations for each comment and correlate it with reverse-coded mean annotator confidence. Public confidence levels are mapped monotonically to 0/.5/1 and reversed as `1 - mean_confidence`; Spearman is invariant to monotone affine recoding.
 
@@ -48,7 +48,7 @@ For each observed held-out MFRC `(bucket, subreddit) × foundation` source cell,
 
 Primary recovery loss is unweighted mean absolute deviation across observed cells; cell-size-weighted mean absolute deviation is a sensitivity diagnostic.
 
-These are MFRC **sample-cell means**, not natural subreddit prevalence, because corpus sampling enriched moral content.
+These are MFRC **sample-cell means**, not natural subreddit prevalence, because corpus sampling enriched moral content. They describe recovery in this selected sample and do not support population-prevalence or causal claims.
 
 ## Wording sensitivity
 
