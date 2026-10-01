@@ -1,0 +1,62 @@
+{
+  "instrument_bundle_hash": "a83f12c98e93ff32a5ae6aec8cb7575fed82ca83facd8919826b4b3e353afcfe",
+  "prompt_hashes": {
+    "canonical": "16cbf6b89014b75d",
+    "strict": "cf9c4eefeff4d3f5"
+  },
+  "experiment_fingerprint": "d2c59bf5b86c61d63ac22f412ca840508f7702a99d46e62e74a6067edd9e8d1f",
+  "data_provenance": {
+    "repo_id": "USC-MOLA-Lab/MFRC",
+    "requested_revision": "ddc21d2f03e156732fd1ba95a51c4c29f07975be",
+    "resolved_revision": "ddc21d2f03e156732fd1ba95a51c4c29f07975be",
+    "split": "train_dedup",
+    "raw_sha256": "ad5c1e695a7c52e8d92ee452c3bca66a3400c76880a2b424627902046bb6511d",
+    "data_config_fingerprint": "0723e0b0e5a910323005bd3e23ac7b06d8852e4436970473f71033f2df7c15a5",
+    "processed_items_sha256": "9f89331ff4fe9e74593e65ac94f0163872de30d3f7181dd3fda5398e50fd12ab"
+  },
+  "split_summary": {
+    "dev_items": 1000,
+    "test_items": 16709,
+    "sensitivity_items": 1000
+  },
+  "request_protocol_version": 2,
+  "requested_jev_model": "jev-latest",
+  "jev_provider_base_url": "https://api.typesafe.ai",
+  "model_snapshot": {
+    "request_protocol_version": 2,
+    "experiment_fingerprint": "d2c59bf5b86c61d63ac22f412ca840508f7702a99d46e62e74a6067edd9e8d1f",
+    "provider_base_url": "https://api.typesafe.ai",
+    "requested_model": "jev-latest",
+    "advertised_model": {
+      "name": "jev-latest",
+      "description": "The latest iteration of TypeSafe's System One Model: Jev",
+      "release_date": "2026-09-10T18:38:01.391457+00:00"
+    },
+    "observed_response_model": "jev-1.13.0",
+    "created_at": "2026-10-01T21:57:48.075956+00:00"
+  },
+  "prespecified_methods": {
+    "seed": 42,
+    "analysis": {
+      "review_budgets": [
+        0.0,
+        0.05,
+        0.1,
+        0.2,
+        0.3
+      ],
+      "random_review_reps": 200,
+      "bootstrap_reps": 1000
+    },
+    "methods_sha256": "9f68fbbdc7c51ae2e54166b1154e6157364280446f22da8e2568f790b0678183"
+  },
+  "methods_plan_fingerprint": "a3e9cfebf015c902cc2dd6c2ce783c115cf948e2e6ddcdea9013fe53d4f04071",
+  "development_evidence": {
+    "completed_calls": 1000,
+    "expected_calls": 1000,
+    "sha256": "4f3a61e95e6573e8f110847b295e6bdd37259125de8e21931a03c55f4d481874"
+  },
+  "approved_at": "2026-10-01T22:27:00.715997+00:00",
+  "git_commit": "f23171c08f60fd16c07b1d4e99739a06fb8299d0",
+  "statement": "Human author reviewed the canonical development-only evidence, both prespecified question sets, and this exact approval manifest before held-out inference."
+}
