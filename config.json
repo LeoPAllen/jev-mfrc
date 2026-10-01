@@ -2,7 +2,7 @@
   "seed": 42,
   "dataset": {
     "repo_id": "USC-MOLA-Lab/MFRC",
-    "revision": "main",
+    "revision": "ddc21d2f03e156732fd1ba95a51c4c29f07975be",
     "split": "train_dedup",
     "min_annotators": 3
   },

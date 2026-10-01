@@ -15,3 +15,5 @@ results/*.json
 results/*.md
 environment.lock.txt
 .DS_Store
+
+cache/jev_model_*.json
