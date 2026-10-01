@@ -35,3 +35,7 @@ Canonicalized annotation label sets for duplicate detection, added semantic-remo
 2026-10-01 — MFRC contradictory duplicate item exclusion
 
 Kept literal and semantic duplicate counts separate, collapsed only same-label-set/same-confidence repeats, and excluded all rows for each of the 42 affected items. Added retained item/annotator uniqueness enforcement, audit counts, pipeline version 9, and concise methods/data/risks documentation with the resolved snapshot revision and SHA. Real `./run.sh --stage data` passed on 53,827 raw rows: 250 semantic duplicates removed, 42 conflict groups/items and 170 rows excluded, 17,844 items remaining before the minimum-annotator filter, and 17,709 eligible items (1,000 dev; 16,709 test). Full suite passed (75 tests) and documentation gate passed. Raw data were unchanged; no JEV/API calls; no unresolved issue.
+
+2026-10-01 — Final structural data audit before JEV inference
+
+Added `docs/DATA_AUDIT.md` with verified snapshot provenance, normalization, split/content duplication, annotator, held-out source-cell, category, and environment summaries; updated `RESEARCH_SPEC.md` to state that config explicitly requests the resolved SHA. Independent raw-to-processed checks passed; 38 blank raw confidence fields are reported descriptively, with no pipeline change. Focused data tests (21), documentation gate, and full suite (75) passed. No JEV/API calls or unresolved audit issue.
