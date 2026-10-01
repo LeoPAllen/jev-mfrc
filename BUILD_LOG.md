@@ -7,3 +7,7 @@ Simplified the original scaffold so development can proceed in five bounded GPT-
 2026-10-01 — Task 01 baseline and runner
 
 Deferred analysis imports until analysis stages so routine runner startup does not load Matplotlib. Focused checks passed (11 tests); shell syntax and read-only `--print` behavior also passed. No unresolved issues.
+
+2026-10-01 — Task 02 MFRC data and split
+
+Preserved literal raw strings, strengthened exact tuple IDs and text-group split assignment, enforced the three-annotator minimum, and bound provenance to the raw snapshot plus processed-file bytes and scientific settings. Documented snapshot immutability; `pytest -q tests/test_data.py` passed (19 tests). No unresolved issues.

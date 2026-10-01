@@ -8,13 +8,15 @@ When a decision model returns probabilities for theory-derived text codes, does 
 
 Use the Moral Foundations Reddit Corpus (MFRC), public Hugging Face dataset `USC-MOLA-Lab/MFRC`, split `train_dedup`.
 
+On first use, resolve the requested dataset revision and save one local raw snapshot with its SHA-256 and resolved revision. Reuse that snapshot only when its checksum and source metadata verify; stop on a missing manifest, partial snapshot, checksum drift, or config mismatch. Do not silently refresh or replace raw data.
+
 Primary constructs are six nonexclusive binary domains: Care, Equality, Proportionality, Loyalty, Authority, and Purity. Thin Morality and Implicit/Explicit Morality are outside this MVP.
 
 MFRC deliberately enriched morally loaded content. Preserve both `bucket` and `subreddit`; downstream source cells are `(bucket, subreddit)`. Source-cell estimates are therefore recovery of this selected MFRC sample, not natural Reddit prevalence.
 
 ## Unit and inclusion rule
 
-The public release exposes no canonical comment ID. Reconstruct an item from exact `(subreddit, bucket, text)` and hash that tuple. This keeps source-cell identity explicit.
+The public release exposes no canonical comment ID. Reconstruct an item from the exact `(bucket, subreddit, text)` tuple and hash that tuple. This keeps source-cell identity explicit.
 Because the release has no lower-level comment identifier, two physically distinct comments with identical text in the same `(bucket, subreddit)` cell cannot be distinguished from repeated annotation rows. Treating the tuple as one item is therefore an explicit reconstruction assumption to report, not a hidden claim about original comment identity.
 
 Exact text can legitimately appear in multiple source cells. Preserve those source-specific items, but assign every item sharing the exact same text to the same dev/test side so literal text leakage cannot cross the split.

@@ -9,7 +9,8 @@
     {
       "id": "02",
       "name": "mfrc_data_and_split",
-      "status": "pending"
+      "status": "complete",
+      "completed_at": "2026-10-01T15:35:58.440369+00:00"
     },
     {
       "id": "03",

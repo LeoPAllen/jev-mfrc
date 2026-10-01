@@ -12,8 +12,10 @@ from .config import path
 
 EXPECTED_COLUMNS = {"text", "subreddit", "bucket", "annotator", "annotation", "confidence"}
 CONFIDENCE = {"Not Confident": 0.0, "Somewhat Confident": 0.5, "Confident": 1.0}
-IDENTITY_COLUMNS = ["text", "subreddit", "bucket", "annotator"]
-DATA_PIPELINE_VERSION = 6
+ITEM_IDENTITY_COLUMNS = ["bucket", "subreddit", "text"]
+ANNOTATION_RECORD_COLUMNS = [*ITEM_IDENTITY_COLUMNS, "annotator"]
+PRIMARY_MIN_ANNOTATORS = 3
+DATA_PIPELINE_VERSION = 7
 
 
 def _sha256_file(p: Path) -> str:
@@ -24,18 +26,13 @@ def _sha256_file(p: Path) -> str:
     return h.hexdigest()
 
 
-def _sha256_frame(df: pd.DataFrame) -> str:
-    payload = df.to_csv(index=False, lineterminator="\n").encode("utf-8")
-    return hashlib.sha256(payload).hexdigest()
-
-
 def _data_config_fingerprint(cfg: dict) -> str:
     """Fingerprint scientific data/split choices, not implementation source code."""
     payload = {
-        "pipeline_version": DATA_PIPELINE_VERSION,
         "foundations": list(FOUNDATIONS),
         "confidence_mapping": CONFIDENCE,
-        "identity_columns": IDENTITY_COLUMNS,
+        "item_identity_columns": ITEM_IDENTITY_COLUMNS,
+        "annotation_record_columns": ANNOTATION_RECORD_COLUMNS,
         "dataset": {
             "repo_id": cfg["dataset"]["repo_id"],
             "revision": cfg["dataset"]["revision"],
@@ -58,13 +55,14 @@ def _labels(value: object) -> set[str]:
     return {part.strip() for part in str(value).split(",") if part.strip()}
 
 
-def _stable_item_id(subreddit: str, bucket: str, text: str) -> str:
-    raw = f"{subreddit}\0{bucket}\0{text}".encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()[:20]
+def _stable_item_id(bucket: str, subreddit: str, text: str) -> str:
+    # JSON array encoding preserves tuple boundaries even if a value contains a NUL.
+    raw = json.dumps([bucket, subreddit, text], ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
 
 
 def _content_id(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:20]
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def _rank(value: str, seed: int, namespace: str) -> str:
@@ -81,6 +79,8 @@ def _verify_raw_snapshot(raw_path: Path, meta_path: Path) -> dict:
     expected = meta.get("sha256")
     if not expected:
         raise RuntimeError("Raw metadata predates checksum validation; delete both raw snapshot files and re-download deliberately.")
+    if not meta.get("resolved_revision"):
+        raise RuntimeError("Raw metadata is missing the resolved dataset revision; restore or deliberately re-download both raw files.")
     actual = _sha256_file(raw_path)
     if actual != expected:
         raise RuntimeError("Raw MFRC snapshot checksum changed. Raw data are immutable; restore or deliberately re-download both raw files.")
@@ -146,8 +146,7 @@ def prepared_data_provenance(cfg: dict) -> dict:
     audit = json.loads(audit_path.read_text(encoding="utf-8"))
     raw_sha = _sha256_file(raw_path)
     config_fp = _data_config_fingerprint(cfg)
-    items = pd.read_csv(items_path)
-    items_sha = _sha256_frame(items)
+    items_sha = _sha256_file(items_path)
     if audit.get("raw_sha256") != raw_sha or audit.get("data_config_fingerprint") != config_fp:
         raise RuntimeError("Processed MFRC data do not match the current raw snapshot or scientific split/inclusion configuration; rebuild them.")
     if audit.get("processed_items_sha256") != items_sha:
@@ -174,10 +173,10 @@ def _choose_grouped_ids(frame: pd.DataFrame, target: int, seed: int, namespace: 
     if target < 1 or target > len(frame):
         raise ValueError(f"{namespace}_items must be between 1 and {len(frame)}")
     groups = (
-        frame.groupby("content_id", as_index=False)["item_id"]
+        frame.groupby("text", as_index=False)["item_id"]
         .agg(list)
-        .assign(rank=lambda x: x["content_id"].map(lambda z: _rank(z, seed, namespace)))
-        .sort_values(["rank", "content_id"], kind="mergesort")
+        .assign(rank=lambda x: x["text"].map(lambda z: _rank(z, seed, namespace)))
+        .sort_values(["rank", "text"], kind="mergesort")
     )
     chosen: set[str] = set()
     for ids in groups["item_id"]:
@@ -196,7 +195,7 @@ def prepare_items(cfg: dict, *, force: bool = False) -> Path:
     del force
     out = path("data", "processed", "items.csv.gz")
     audit_path = path("data", "processed", "audit.json")
-    excluded_path = path("data", "processed", "excluded_lt3.csv.gz")
+    excluded_path = path("data", "processed", "excluded_lt_min_annotators.csv.gz")
     raw_path = path("data", "raw", "mfrc.csv.gz")
     meta_path = path("data", "raw", "mfrc_meta.json")
     if not raw_path.exists() or not meta_path.exists():
@@ -207,27 +206,34 @@ def prepare_items(cfg: dict, *, force: bool = False) -> Path:
     if observed_source != expected_source:
         raise RuntimeError(f"Raw snapshot provenance does not match config: {observed_source} != {expected_source}")
 
+    min_annotators = int(cfg["dataset"]["min_annotators"])
+    if min_annotators < PRIMARY_MIN_ANNOTATORS:
+        raise ValueError(
+            f"dataset.min_annotators must be at least {PRIMARY_MIN_ANNOTATORS} for the prespecified MFRC study"
+        )
+
     raw_sha = _sha256_file(raw_path)
     config_fp = _data_config_fingerprint(cfg)
-    raw = pd.read_csv(raw_path)
+    # Preserve literal strings (including values such as "NA") exactly as released.
+    raw = pd.read_csv(raw_path, dtype=str, keep_default_na=False)
     missing = EXPECTED_COLUMNS - set(raw.columns)
     if missing:
         raise ValueError(f"Raw MFRC missing expected columns: {sorted(missing)}")
-    null_identity = raw[IDENTITY_COLUMNS].isna().any(axis=1)
+    null_identity = raw[ANNOTATION_RECORD_COLUMNS].isna().any(axis=1)
     if null_identity.any():
         raise ValueError(f"MFRC has {int(null_identity.sum())} rows with missing item identity/annotator fields")
-    blank_identity = raw[IDENTITY_COLUMNS].apply(lambda col: col.astype(str).str.strip().eq("")).any(axis=1)
+    blank_identity = raw[ANNOTATION_RECORD_COLUMNS].apply(lambda col: col.astype(str).str.strip().eq("")).any(axis=1)
     if blank_identity.any():
         raise ValueError(f"MFRC has {int(blank_identity.sum())} rows with blank item identity/annotator fields")
-    if raw["annotation"].isna().any():
+    if raw["annotation"].eq("").any():
         raise ValueError("MFRC contains missing annotation values; do not guess how to code them")
 
     original_rows = len(raw)
     exact_duplicate_rows = int(raw.duplicated().sum())
     raw = raw.drop_duplicates().copy()
     raw["item_id"] = [
-        _stable_item_id(str(s), str(b), str(t))
-        for s, b, t in zip(raw["subreddit"], raw["bucket"], raw["text"])
+        _stable_item_id(b, s, t)
+        for b, s, t in zip(raw["bucket"], raw["subreddit"], raw["text"])
     ]
 
     dup = raw.duplicated(["item_id", "annotator"], keep=False)
@@ -238,7 +244,7 @@ def prepare_items(cfg: dict, *, force: bool = False) -> Path:
             + bad.head(12).to_string(index=False)
         )
 
-    observed_conf = set(raw["confidence"].dropna().astype(str).unique())
+    observed_conf = set(raw["confidence"].astype(str).unique()) - {""}
     unknown_conf = observed_conf - set(CONFIDENCE)
     if unknown_conf:
         raise ValueError(f"Unknown confidence values: {sorted(unknown_conf)}")
@@ -274,7 +280,6 @@ def prepare_items(cfg: dict, *, force: bool = False) -> Path:
     )
     items["content_id"] = items["text"].astype(str).map(_content_id)
 
-    min_annotators = int(cfg["dataset"]["min_annotators"])
     eligible = items.loc[items["n_annotators"] >= min_annotators].copy()
     excluded = items.loc[items["n_annotators"] < min_annotators].copy()
     if eligible.empty:
@@ -297,7 +302,7 @@ def prepare_items(cfg: dict, *, force: bool = False) -> Path:
     eligible["sensitivity"] = eligible["item_id"].isin(sens_ids)
 
     # A leak-prevention invariant worth enforcing: exact text never crosses dev/test.
-    split_counts = eligible.groupby("content_id")["split"].nunique()
+    split_counts = eligible.groupby("text")["split"].nunique()
     if (split_counts > 1).any():
         raise AssertionError("Exact-text grouping failed: identical text crossed dev/test")
 
@@ -307,7 +312,7 @@ def prepare_items(cfg: dict, *, force: bool = False) -> Path:
     compression = {"method": "gzip", "mtime": 0}
     eligible.to_csv(out, index=False, compression=compression)
     excluded.to_csv(excluded_path, index=False, compression=compression)
-    items_sha = _sha256_frame(eligible)
+    items_sha = _sha256_file(out)
 
     text_source_counts = (
         raw[["text", "bucket", "subreddit"]]

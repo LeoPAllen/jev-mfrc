@@ -35,13 +35,30 @@ def _write_snapshot(root, df):
     (root / "data/raw").mkdir(parents=True, exist_ok=True)
     raw = root / "data/raw/mfrc.csv.gz"
     df.to_csv(raw, index=False, compression="gzip")
-    meta = {"sha256": data._sha256_file(raw), "repo_id": "x", "requested_revision": "main", "split": "train_dedup"}
+    meta = {
+        "sha256": data._sha256_file(raw), "repo_id": "x", "requested_revision": "main",
+        "resolved_revision": "sha", "split": "train_dedup",
+    }
     (root / "data/raw/mfrc_meta.json").write_text(json.dumps(meta))
+
+
+def test_item_identity_hash_preserves_tuple_boundaries():
+    left = data._stable_item_id("c", "a\0b", "d")
+    right = data._stable_item_id("b\0c", "a", "d")
+    assert left != right
+
+
+def test_data_config_fingerprint_does_not_depend_on_pipeline_version(monkeypatch):
+    cfg = _cfg()
+    fingerprint = data._data_config_fingerprint(cfg)
+    monkeypatch.setattr(data, "DATA_PIPELINE_VERSION", data.DATA_PIPELINE_VERSION + 1)
+    assert data._data_config_fingerprint(cfg) == fingerprint
 
 
 def test_prepare_items_excludes_two_annotator_and_is_row_order_stable(tmp_path, monkeypatch):
     a = tmp_path / "a"; b = tmp_path / "b"
     raw = _raw_rows()
+    raw = pd.concat([raw, raw.iloc[[0]]], ignore_index=True)
     _write_snapshot(a, raw); _write_snapshot(b, raw.sample(frac=1, random_state=99))
 
     monkeypatch.setattr(data, "path", lambda *p: a.joinpath(*p))
@@ -50,6 +67,10 @@ def test_prepare_items_excludes_two_annotator_and_is_row_order_stable(tmp_path, 
     audit = json.loads((a / "data/processed/audit.json").read_text())
     assert len(first) == 5
     assert audit["excluded_lt_min_annotators"] == 1
+    assert audit["exact_duplicate_rows_removed"] == 1
+    excluded = pd.read_csv(a / "data/processed/excluded_lt_min_annotators.csv.gz")
+    assert len(excluded) == 1
+    assert excluded["text"].tolist() == ["c"]
     assert (first["n_annotators"] >= 3).all()
     assert (first["split"] == "dev").sum() == 2
     assert first["sensitivity"].sum() == 2
@@ -89,8 +110,19 @@ def test_conflicting_item_annotator_fails(tmp_path, monkeypatch):
     raw = _raw_rows()
     duplicate = raw.iloc[[0]].copy(); duplicate["annotation"] = "Purity"
     _write_snapshot(tmp_path, pd.concat([raw, duplicate], ignore_index=True))
-    with pytest.raises(ValueError, match="item/annotator"):
+    with pytest.raises(ValueError, match="item/annotator") as exc:
         data.prepare_items(_cfg(), force=True)
+    assert "Care" in str(exc.value)
+    assert "Purity" in str(exc.value)
+
+
+def test_primary_sample_requires_at_least_three_annotators(tmp_path, monkeypatch):
+    monkeypatch.setattr(data, "path", lambda *p: tmp_path.joinpath(*p))
+    _write_snapshot(tmp_path, _raw_rows())
+    cfg = _cfg()
+    cfg["dataset"]["min_annotators"] = 2
+    with pytest.raises(ValueError, match="must be at least 3"):
+        data.prepare_items(cfg)
 
 
 def test_unknown_confidence_fails(tmp_path, monkeypatch):
@@ -101,11 +133,23 @@ def test_unknown_confidence_fails(tmp_path, monkeypatch):
         data.prepare_items(_cfg(), force=True)
 
 
+def test_blank_confidence_remains_missing_not_an_unknown_label(tmp_path, monkeypatch):
+    monkeypatch.setattr(data, "path", lambda *p: tmp_path.joinpath(*p))
+    raw = _raw_rows()
+    raw.loc[0, "confidence"] = ""
+    _write_snapshot(tmp_path, raw)
+    out = data.prepare_items(_cfg())
+    items = pd.read_csv(out)
+    assert items.loc[items["text"] == "a", "human_confidence_mean"].iloc[0] == pytest.approx(1.0)
+
+
 def test_processed_content_mutation_is_detected(tmp_path, monkeypatch):
     monkeypatch.setattr(data, "path", lambda *p: tmp_path.joinpath(*p))
     _write_snapshot(tmp_path, _raw_rows())
     data.prepare_items(_cfg(), force=True)
     p = tmp_path / "data/processed/items.csv.gz"
+    audit = json.loads((tmp_path / "data/processed/audit.json").read_text())
+    assert audit["processed_items_sha256"] == data._sha256_file(p)
     df = pd.read_csv(p)
     df.loc[0, "text"] = "tampered"
     df.to_csv(p, index=False, compression="gzip")
@@ -119,6 +163,16 @@ def test_revision_drift_is_detected(tmp_path, monkeypatch):
     cfg = _cfg(); cfg["dataset"]["revision"] = "other"
     with pytest.raises(RuntimeError, match="provenance"):
         data.prepare_items(cfg, force=True)
+
+
+def test_literal_na_text_is_preserved_exactly(tmp_path, monkeypatch):
+    monkeypatch.setattr(data, "path", lambda *p: tmp_path.joinpath(*p))
+    raw = _raw_rows()
+    raw.loc[raw["text"] == "a", "text"] = "NA"
+    _write_snapshot(tmp_path, raw)
+    out = data.prepare_items(_cfg())
+    items = pd.read_csv(out, dtype={"text": str}, keep_default_na=False)
+    assert "NA" in set(items["text"])
 
 
 def test_blank_identity_fails(tmp_path, monkeypatch):
@@ -188,7 +242,31 @@ def test_cross_source_identical_text_is_grouped_to_same_split(tmp_path, monkeypa
     items = pd.read_csv(out)
     same = items.loc[items["text"] == "a"]
     assert len(same) == 2
+    assert same["item_id"].nunique() == 2
     assert same["split"].nunique() == 1
     audit = json.loads((tmp_path / "data/processed/audit.json").read_text())
     assert audit["cross_source_exact_text_groups"] >= 1
     assert audit["exact_text_grouped_across_splits"] is True
+
+
+def test_download_raw_reuses_verified_snapshot_without_replacing_it(tmp_path, monkeypatch):
+    monkeypatch.setattr(data, "path", lambda *p: tmp_path.joinpath(*p))
+    cfg = _cfg()
+    _write_snapshot(tmp_path, _raw_rows())
+    raw_path = tmp_path / "data/raw/mfrc.csv.gz"
+    before = raw_path.read_bytes()
+    returned_raw, returned_meta = data.download_raw(cfg)
+    assert returned_raw == raw_path
+    assert returned_meta == tmp_path / "data/raw/mfrc_meta.json"
+    assert raw_path.read_bytes() == before
+
+
+def test_raw_metadata_requires_resolved_revision(tmp_path, monkeypatch):
+    monkeypatch.setattr(data, "path", lambda *p: tmp_path.joinpath(*p))
+    _write_snapshot(tmp_path, _raw_rows())
+    meta_path = tmp_path / "data/raw/mfrc_meta.json"
+    meta = json.loads(meta_path.read_text())
+    del meta["resolved_revision"]
+    meta_path.write_text(json.dumps(meta))
+    with pytest.raises(RuntimeError, match="resolved dataset revision"):
+        data.download_raw(_cfg())
