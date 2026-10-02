@@ -47,3 +47,7 @@ Added coder-count-adjusted pairwise disagreement as a secondary robustness resul
 2026-10-01 — Final pre-inference audit
 
 Required raw requested/resolved revisions to match the configured immutable pin and added the direct analysis approval guard. Clarified primary/secondary analysis roles and the data → canonical dev → human review sequence. Data stage passed without `TYPESAFE_API_KEY`; full suite passed (80 tests), as did compilation, shell syntax, documentation gate, snapshot ignore check, and diff check. No live JEV calls were made. Still pending: authenticated request, actual dev predictions, human semantic approval, and held-out/sensitivity inference.
+
+2026-10-01 — Post-results reproducibility bundle
+
+Added `scripts/build_release_bundle.py` and a non-ignored `release/` archive with hashed, text-free canonical held-out and strict sensitivity data, archived analysis outputs, provenance, and schema/integrity validation tests. Updated `VALIDATION.md` to preserve the pre-inference checkpoint while recording completed inference and post-run checks. Bundle validation passed; one isolated analysis regeneration matched all eight numerical CSV/JSON/summary artifacts byte-for-byte, and both PNGs were byte-identical in this environment. Full suite passed (96 tests), including deterministic compressed-CSV output. Documentation, compilation, and diff checks passed. No JEV calls were made and original results were not overwritten. Repository index tracking remains for the wrapper/user because `.git` is read-only in this workspace.

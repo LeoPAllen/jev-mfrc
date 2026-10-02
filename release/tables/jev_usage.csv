@@ -1,0 +1,3 @@
+variant,returned_model,input_tokens,output_tokens
+canonical,jev-1.13.0,29466285,1912572
+strict,jev-1.13.0,1862365,108000

@@ -1,0 +1,56 @@
+{
+  "analysis_configuration": {
+    "bootstrap_reps": 1000,
+    "random_review_reps": 200,
+    "review_budgets": [
+      0.0,
+      0.05,
+      0.1,
+      0.2,
+      0.3
+    ],
+    "seed": 42
+  },
+  "counts": {
+    "canonical_heldout_predictions": 16709,
+    "development_canonical_predictions": 1000,
+    "eligible_items": 17709,
+    "strict_sensitivity_predictions": 1000
+  },
+  "experiment_fingerprint": "d2c59bf5b86c61d63ac22f412ca840508f7702a99d46e62e74a6067edd9e8d1f",
+  "file_sha256": {
+    "README.md": "f54df4fe03eb3f4ef8f61a92eb52e997caef97c9ed56c1fc1acc784ef3a809c0",
+    "analysis.json": "3d8ea7c9c69cd968d6a0b79cb72257568df065b48d1fca32cb16ba1ecd25aac1",
+    "data/canonical_heldout.csv.gz": "25ec9b0f136c3840b5eb3b80ce9a7269eebaace6f0637650ec0a69cf6504c403",
+    "data/strict_sensitivity.csv.gz": "2008bf97cc76f4e1d0406ce5cab0dd3791e967ec3092b2787efdc823a412626c",
+    "figures/cell_recovery.png": "585b0f76ad3c4fb571de4015f4c92c94bec4e12fed05852f5a0145798637a94b",
+    "figures/selective_review.png": "e287860a9493b0636e0e989a114c3fd385885850219044330d1fedf5768a9278",
+    "summary.md": "8764639c8cde948719e42dd9a984148b67531f5c3f368eab245f7bf627e150cb",
+    "tables/foundation_metrics.csv": "a1c181f1aece8ebc78c8831d30b7c70a2f6cbc0a0e30571e1ba5cb43d21d0394",
+    "tables/jev_usage.csv": "943ba9b1d78c3f637849eef640fecfc3c36fa488858a42fb0995fd2fd9750e13",
+    "tables/selective_review.csv": "314959946b7919a0ee3e7d0af7669c88bcffd9da35d7dd702a718392d6dce268",
+    "tables/source_cell_recovery.csv": "c0b404e92bdf1bb03fedf8f9b76f2124b56db9a0b665831702eaecc977c3da64",
+    "tables/source_cell_recovery_summary.csv": "ed0d8204f581480c29cde63f0949c4ab9200345bee7c5ab8f9b3b52db2b32ad6",
+    "tables/wording_sensitivity.csv": "96c76f933693e1cd330461aec4db943e0a3a30d876634e4cd565fd0261750aff"
+  },
+  "git_commit": "4b8a91740450572829b4eeda6033d1a915f472bb",
+  "instrument": {
+    "approval_file_sha256": "5a82d5647116fae8b08659b38ea23a1330a023236ef900c4417db78ebce4d2c4",
+    "canonical_prompt_hash": "16cbf6b89014b75d",
+    "instrument_bundle_hash": "a83f12c98e93ff32a5ae6aec8cb7575fed82ca83facd8919826b4b3e353afcfe",
+    "strict_prompt_hash": "cf9c4eefeff4d3f5"
+  },
+  "jev_models": {
+    "requested": "jev-latest",
+    "returned": "jev-1.13.0"
+  },
+  "mfrc": {
+    "data_config_fingerprint": "0723e0b0e5a910323005bd3e23ac7b06d8852e4436970473f71033f2df7c15a5",
+    "processed_data_sha256": "9f89331ff4fe9e74593e65ac94f0163872de30d3f7181dd3fda5398e50fd12ab",
+    "raw_dataset_sha256": "ad5c1e695a7c52e8d92ee452c3bca66a3400c76880a2b424627902046bb6511d",
+    "repo_id": "USC-MOLA-Lab/MFRC",
+    "revision": "ddc21d2f03e156732fd1ba95a51c4c29f07975be",
+    "split": "train_dedup"
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,235 @@
+{
+  "provenance": {
+    "experiment_fingerprint": "d2c59bf5b86c61d63ac22f412ca840508f7702a99d46e62e74a6067edd9e8d1f",
+    "data": {
+      "repo_id": "USC-MOLA-Lab/MFRC",
+      "requested_revision": "ddc21d2f03e156732fd1ba95a51c4c29f07975be",
+      "resolved_revision": "ddc21d2f03e156732fd1ba95a51c4c29f07975be",
+      "split": "train_dedup",
+      "raw_sha256": "ad5c1e695a7c52e8d92ee452c3bca66a3400c76880a2b424627902046bb6511d",
+      "data_config_fingerprint": "0723e0b0e5a910323005bd3e23ac7b06d8852e4436970473f71033f2df7c15a5",
+      "processed_items_sha256": "9f89331ff4fe9e74593e65ac94f0163872de30d3f7181dd3fda5398e50fd12ab"
+    },
+    "instrument_bundle_hash": "a83f12c98e93ff32a5ae6aec8cb7575fed82ca83facd8919826b4b3e353afcfe",
+    "prompt_hashes": {
+      "canonical": "16cbf6b89014b75d",
+      "strict": "cf9c4eefeff4d3f5"
+    },
+    "provider_base_url": "https://api.typesafe.ai",
+    "configured_jev_model": "jev-latest",
+    "requested_models_in_export": [
+      "jev-latest"
+    ],
+    "returned_models_in_export": [
+      "jev-1.13.0"
+    ],
+    "seed": 42,
+    "analysis_config": {
+      "review_budgets": [
+        0.0,
+        0.05,
+        0.1,
+        0.2,
+        0.3
+      ],
+      "random_review_reps": 200,
+      "bootstrap_reps": 1000
+    },
+    "analysis_code_sha256": "b8e4d55e64fb5b0730149711df9c01f5903418119fe61a3deaf5890333a06175",
+    "heldout_export_sha256": "dd268378b6fd53eac3e25f15073829b3f4aa52b0a4fe875961a49089ee7613d4"
+  },
+  "test_items": 16709,
+  "sensitivity_items": 1000,
+  "foundations": [
+    "care",
+    "equality",
+    "proportionality",
+    "loyalty",
+    "authority",
+    "purity"
+  ],
+  "uncertainty_validity": {
+    "foundation_spearman": {
+      "care": 0.38926362623594385,
+      "equality": 0.30089448509420474,
+      "proportionality": 0.22723401578574032,
+      "loyalty": 0.19216516968370365,
+      "authority": 0.34114176278365244,
+      "purity": 0.30408288774822384
+    },
+    "foundation_ci95": {
+      "care": [
+        0.37735137140951897,
+        0.4007805392066347
+      ],
+      "equality": [
+        0.28890636044129586,
+        0.31273987109146206
+      ],
+      "proportionality": [
+        0.21258278535014266,
+        0.24164024069103116
+      ],
+      "loyalty": [
+        0.17979158994689787,
+        0.20485672030173685
+      ],
+      "authority": [
+        0.3293330447857325,
+        0.35249154498888396
+      ],
+      "purity": [
+        0.29160989453708147,
+        0.31558567846888164
+      ]
+    },
+    "macro_mean": 0.29246365788857814,
+    "ci95_low": 0.2870833447669957,
+    "ci95_high": 0.29742307060123285,
+    "reps": 1000
+  },
+  "loss_information_retention": {
+    "squared": {
+      "macro": {
+        "estimate": 0.034519367473284525,
+        "ci95": [
+          0.03356799141015156,
+          0.03550353820462692
+        ]
+      },
+      "foundation": {
+        "care": {
+          "estimate": 0.05001991142498056,
+          "ci95": [
+            0.04772285819019691,
+            0.05248820251561036
+          ]
+        },
+        "equality": {
+          "estimate": 0.03889733476968501,
+          "ci95": [
+            0.03659471168232689,
+            0.04114115177449278
+          ]
+        },
+        "proportionality": {
+          "estimate": 0.014997272926766017,
+          "ci95": [
+            0.013696643276078762,
+            0.016345682715901613
+          ]
+        },
+        "loyalty": {
+          "estimate": 0.04880231611706267,
+          "ci95": [
+            0.04574679219781755,
+            0.05157856354858659
+          ]
+        },
+        "authority": {
+          "estimate": 0.047670183733317384,
+          "ci95": [
+            0.044835487262353625,
+            0.05054337343148403
+          ]
+        },
+        "purity": {
+          "estimate": 0.006729185867895546,
+          "ci95": [
+            0.005745535489855767,
+            0.007810423873361663
+          ]
+        }
+      }
+    },
+    "absolute": {
+      "macro": {
+        "estimate": -0.025698658740133395,
+        "ci95": [
+          -0.026846203144014206,
+          -0.024599544656572308
+        ]
+      },
+      "foundation": {
+        "care": {
+          "estimate": -0.006174117740938017,
+          "ci95": [
+            -0.00894680511500788,
+            -0.003096270472998584
+          ]
+        },
+        "equality": {
+          "estimate": -0.02401719632134379,
+          "ci95": [
+            -0.026532322899834423,
+            -0.02142157420152812
+          ]
+        },
+        "proportionality": {
+          "estimate": -0.0151281744369302,
+          "ci95": [
+            -0.01677219861551659,
+            -0.013604434735771144
+          ]
+        },
+        "loyalty": {
+          "estimate": -0.04861431962814451,
+          "ci95": [
+            -0.05183979192850161,
+            -0.04564611885810043
+          ]
+        },
+        "authority": {
+          "estimate": -0.030939214395435597,
+          "ci95": [
+            -0.03423810521275959,
+            -0.027718420212659845
+          ]
+        },
+        "purity": {
+          "estimate": -0.02931892991800826,
+          "ci95": [
+            -0.03073160173160173,
+            -0.027892897041514556
+          ]
+        }
+      }
+    },
+    "reps": 1000
+  },
+  "robustness": {
+    "pairwise_coder_disagreement": {
+      "foundation_spearman": {
+        "care": 0.3892604881432055,
+        "equality": 0.3008498181181587,
+        "proportionality": 0.22723401578574032,
+        "loyalty": 0.19216516968370365,
+        "authority": 0.3411417627836524,
+        "purity": 0.30408288774822384
+      },
+      "macro_mean": 0.29245569037711405
+    }
+  },
+  "bootstrap_units": {
+    "primary": "item/comment row",
+    "content_cluster_robustness": "exact-text content_id cluster",
+    "heldout_rows": 16709,
+    "heldout_unique_content_ids": 16709,
+    "row_and_content_cluster_units_coincide": 1,
+    "content_cluster_bootstrap_applicable": 0
+  },
+  "jev_uncertainty_vs_reverse_coder_confidence_spearman": 0.32061547536733315,
+  "source_sample_cell_recovery": {
+    "soft_mae": 0.1027815421009853,
+    "hard_mae": 0.06708557906858381,
+    "soft_weighted_mae": 0.10531180800766055,
+    "hard_weighted_mae": 0.06804067668122968
+  },
+  "wording_sensitivity": {
+    "mean_absolute_probability_change_macro": 0.045901666666666674,
+    "hard_label_flip_rate_macro": 0.04683333333333333,
+    "canonical_strict_spearman_macro": 0.9670299689330352,
+    "strict_minus_canonical_squared_loss_macro": -0.018852583333333332,
+    "strict_minus_canonical_uncertainty_spearman_macro": 0.054385065946958994
+  }
+}
