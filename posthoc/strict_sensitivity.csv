@@ -1,0 +1,8 @@
+analysis_status,foundation,n_comments,mean_human_share,mean_canonical_probability,mean_strict_probability,canonical_signed_bias,strict_signed_bias,canonical_strict_probability_spearman
+POST-HOC EXPLORATORY — specified after observing the primary results,care,1000,0.13,0.25379,0.21394,0.12379,0.08394,0.9872592826
+POST-HOC EXPLORATORY — specified after observing the primary results,equality,1000,0.086,0.21918,0.17392,0.13318,0.08792,0.9846783669
+POST-HOC EXPLORATORY — specified after observing the primary results,proportionality,1000,0.07233333333,0.07175,0.0582,-0.0005833333333,-0.01413333333,0.927449409
+POST-HOC EXPLORATORY — specified after observing the primary results,loyalty,1000,0.05666666667,0.2415,0.17796,0.1848333333,0.1212933333,0.983378418
+POST-HOC EXPLORATORY — specified after observing the primary results,authority,1000,0.08158333333,0.23066,0.14056,0.1490766667,0.05897666667,0.9791642308
+POST-HOC EXPLORATORY — specified after observing the primary results,purity,1000,0.037,0.06229,0.04444,0.02529,0.00744,0.9402501062
+POST-HOC EXPLORATORY — specified after observing the primary results,macro,1000,0.07726388889,0.1798616667,0.1348366667,0.1025977778,0.05757277778,0.9670299689

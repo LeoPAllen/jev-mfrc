@@ -1,0 +1,7 @@
+analysis_status,foundation,development_items,development_weight_sum_n_annotators,intercept_a,slope_b,constant_dev_human_prevalence
+POST-HOC EXPLORATORY — specified after observing the primary results,care,1000,3001,-0.0198565665,0.5715386213,0.1203333333
+POST-HOC EXPLORATORY — specified after observing the primary results,equality,1000,3001,-0.01393381912,0.4485337876,0.08233333333
+POST-HOC EXPLORATORY — specified after observing the primary results,proportionality,1000,3001,0.04384953274,0.4083918719,0.07266666667
+POST-HOC EXPLORATORY — specified after observing the primary results,loyalty,1000,3001,-0.01462468285,0.2437924529,0.046
+POST-HOC EXPLORATORY — specified after observing the primary results,authority,1000,3001,-0.007907679597,0.403532844,0.08258333333
+POST-HOC EXPLORATORY — specified after observing the primary results,purity,1000,3001,0.003837964925,0.5058131162,0.03891666667

@@ -1,0 +1,7 @@
+analysis_status,foundation,n_comments,mixed_case_prevalence,auc_entropy_predicting_mixed,auc_raw_probability_predicting_mixed,mean_p_human_share_zero,mean_p_human_share_mixed,mean_p_human_share_one
+POST-HOC EXPLORATORY — specified after observing the primary results,care,16709,0.2349631935,0.7647115559,0.8169478464,0.1506481104,0.4836678553,0.8395488722
+POST-HOC EXPLORATORY — specified after observing the primary results,equality,16709,0.1529116045,0.7408296411,0.8254120249,0.141143167,0.5116125245,0.8900308642
+POST-HOC EXPLORATORY — specified after observing the primary results,proportionality,16709,0.1858279969,0.6648359084,0.667865909,0.05938053751,0.1493816425,0.5895
+POST-HOC EXPLORATORY — specified after observing the primary results,loyalty,16709,0.1043150398,0.681320862,0.7926856622,0.2065576858,0.4998336202,0.8576237624
+POST-HOC EXPLORATORY — specified after observing the primary results,authority,16709,0.1845113412,0.7536624569,0.7971533952,0.1823578138,0.4248102498,0.6899047619
+POST-HOC EXPLORATORY — specified after observing the primary results,purity,16709,0.09455981806,0.7956159099,0.7961846684,0.0535043755,0.161835443,0.6215555556

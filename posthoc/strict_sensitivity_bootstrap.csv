@@ -1,0 +1,22 @@
+analysis_status,metric,foundation,estimate,ci95_low,ci95_high,bootstrap_reps
+POST-HOC EXPLORATORY — specified after observing the primary results,squared_loss,care,-0.01688523333,-0.01973089917,-0.01386553083,1000
+POST-HOC EXPLORATORY — specified after observing the primary results,squared_loss,equality,-0.0220688,-0.02567497333,-0.01843946,1000
+POST-HOC EXPLORATORY — specified after observing the primary results,squared_loss,proportionality,-0.003475566667,-0.004918455833,-0.0021883975,1000
+POST-HOC EXPLORATORY — specified after observing the primary results,squared_loss,loyalty,-0.0342008,-0.03827708917,-0.03043039583,1000
+POST-HOC EXPLORATORY — specified after observing the primary results,squared_loss,authority,-0.0341238,-0.0387609825,-0.02954640583,1000
+POST-HOC EXPLORATORY — specified after observing the primary results,squared_loss,purity,-0.0023613,-0.004072108333,-0.0008264466667,1000
+POST-HOC EXPLORATORY — specified after observing the primary results,squared_loss,macro,-0.01885258333,-0.02043268333,-0.01734028944,1000
+POST-HOC EXPLORATORY — specified after observing the primary results,absolute_loss,care,-0.02739,-0.03086758333,-0.02368308333,1000
+POST-HOC EXPLORATORY — specified after observing the primary results,absolute_loss,equality,-0.03401333333,-0.0381705,-0.029732,1000
+POST-HOC EXPLORATORY — specified after observing the primary results,absolute_loss,proportionality,-0.00817,-0.010297,-0.006349833333,1000
+POST-HOC EXPLORATORY — specified after observing the primary results,absolute_loss,loyalty,-0.05268666667,-0.05739716667,-0.048173,1000
+POST-HOC EXPLORATORY — specified after observing the primary results,absolute_loss,authority,-0.05807333333,-0.06464016667,-0.05193258333,1000
+POST-HOC EXPLORATORY — specified after observing the primary results,absolute_loss,purity,-0.009123333333,-0.01127408333,-0.006946333333,1000
+POST-HOC EXPLORATORY — specified after observing the primary results,absolute_loss,macro,-0.03157611111,-0.03358891667,-0.02969438889,1000
+POST-HOC EXPLORATORY — specified after observing the primary results,absolute_signed_bias_magnitude,care,-0.03985,-0.04350025,-0.03640975,1000
+POST-HOC EXPLORATORY — specified after observing the primary results,absolute_signed_bias_magnitude,equality,-0.04526,-0.04932,-0.04146975,1000
+POST-HOC EXPLORATORY — specified after observing the primary results,absolute_signed_bias_magnitude,proportionality,0.01355,-0.004511333333,0.014733,1000
+POST-HOC EXPLORATORY — specified after observing the primary results,absolute_signed_bias_magnitude,loyalty,-0.06354,-0.06807025,-0.05926975,1000
+POST-HOC EXPLORATORY — specified after observing the primary results,absolute_signed_bias_magnitude,authority,-0.0901,-0.09596275,-0.084899,1000
+POST-HOC EXPLORATORY — specified after observing the primary results,absolute_signed_bias_magnitude,purity,-0.01785,-0.0201605,-0.015669,1000
+POST-HOC EXPLORATORY — specified after observing the primary results,absolute_signed_bias_magnitude,macro,-0.04050833333,-0.04404119444,-0.03893825,1000

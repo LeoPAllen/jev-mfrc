@@ -1,0 +1,6 @@
+analysis_status,budget,comments_reviewed,baseline_raw_mse,entropy_targeted_mse,mean_probability_targeted_mse,random_review_mse_mean,random_review_mse_ci95_low,random_review_mse_ci95_high,oracle_error_targeted_mse
+POST-HOC EXPLORATORY — specified after observing the primary results,0,0,0.05482249032,0.05482249032,0.05482249032,0.05482249032,0.05482249032,0.05482249032,0.05482249032
+POST-HOC EXPLORATORY — specified after observing the primary results,0.05,835,0.05482249032,0.04855325185,0.04629645844,0.05209501875,0.05192158133,0.05228180745,0.04385431083
+POST-HOC EXPLORATORY — specified after observing the primary results,0.1,1671,0.05482249032,0.04292134345,0.0398010162,0.04932890645,0.04908062966,0.04961089568,0.0362307673
+POST-HOC EXPLORATORY — specified after observing the primary results,0.2,3342,0.05482249032,0.03323400962,0.02929165819,0.04386733892,0.04354281455,0.04421446569,0.02471130961
+POST-HOC EXPLORATORY — specified after observing the primary results,0.3,5013,0.05482249032,0.02479220092,0.02094902337,0.03839486208,0.03801796655,0.03882667657,0.01657284675
