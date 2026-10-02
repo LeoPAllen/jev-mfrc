@@ -1,0 +1,68 @@
+# Literature positioning
+
+## Framing
+
+The strongest defensible contribution is a measurement distinction:
+
+> **INFORMATION ≠ CALIBRATION ≠ DISAGREEMENT**
+
+These are separate empirical questions. A probability can rank items usefully and retain information lost by thresholding while its numerical level fails to match a human vote share. Its entropy can be associated with human disagreement without being a distribution over human annotators or a uniquely useful disagreement detector. JEV's `noul` output is documented as the probability that a bounded yes/no answer is True; that contract describes the output, not its task-specific accuracy. The [System One decision-primitives documentation](https://docs.system-one.dev/en/docs/primitives) and [TypeSafe API reference](https://api.typesafe.ai/docs) should be cited for that interface meaning, alongside empirical validation for any substantive interpretation.
+
+For this study, **information** concerns prediction and loss relative to the observed reference; **calibration** concerns whether numeric probability levels match the rate of human yes judgments; and **disagreement** concerns variation among the human judgments on an item. A human vote share is a reference distribution from annotators, not ontological truth. A probability of the model's bounded judgment is not a moral-intensity score or automatically a probability that a randomly selected human annotator would say yes.
+
+## What the completed MFRC study supports
+
+The released primary analyses and post-hoc audit point in different directions depending on the question and loss. They support a bounded methods result, not the claim that JEV reproduces people.
+
+| Question | Completed-study evidence | Interpretation and status |
+|---|---|---|
+| Does retaining `p` preserve information relative to its own hard threshold? | On held-out MFRC, hard-minus-probability squared loss to vote share was `0.03452` (comment-bootstrap 95% interval `0.03357` to `0.03550`), favoring probabilities. | The squared-loss result is a paired representation comparison for the same instrument. It is not evidence that native probability levels are calibrated. Absolute loss favored hard labels instead: hard-minus-probability was `-0.02570` (95% interval `-0.02685` to `-0.02460`). Hard predictions also recovered observed MFRC source-cell means more closely (MAE `0.06709` vs. `0.10278` for probabilities). These cells describe this selected sample, not Reddit prevalence. |
+| Are native JEV levels aligned with human vote shares? | The post-hoc held-out macro mean signed raw bias was `+0.10476` (probability minus vote share). Raw macro squared loss was `0.05482`; a weighted affine map fit on 1,000 development comments had held-out squared loss `0.02288`, absolute loss `0.08903` vs. raw `0.15049`, and mean signed bias `+0.00032`. | The small development set appears to have calibrated raw probabilities very well on the held-out portion of this same MFRC snapshot. This comparison was specified after the primary results, so it is exploratory, not confirmatory evidence of a general calibration procedure. It has not been replicated on a new corpus. |
+| Does model entropy recover human disagreement? | The prespecified `H(p)`–`H(h)` macro Spearman correlation was `0.2925` (95% interval `0.2871` to `0.2974`). In the post-hoc mixed-vote detection analysis, mean AUC was `0.7335` for entropy and `0.7827` for raw `p`; entropy had the higher AUC in `0/6` foundations. | Entropy contains some disagreement-related signal, but it is modest and does not isolate disagreement from the strength of the predicted-positive signal. Neither JEV entropy nor a single yes probability should be read as the human annotator distribution. |
+| Does wording matter? | The preselected strict-wording sensitivity subset (`n=1,000`) had lower squared loss by `0.01885`, lower absolute loss by `0.03158`, and a `0.04051` reduction in the absolute aggregate signed bias relative to canonical wording. | The strict bundle was a prespecified wording sensitivity, but these numerical loss and bias contrasts are reported in the post-hoc calibration audit and remain exploratory. They show that wording can materially alter probability levels in this subset; canonical wording remains primary. |
+
+The calibration tables, bins, calibration-vs-baseline method comparison, and numerical strict-wording loss/bias contrasts are explicitly marked post hoc in [`posthoc/POSTHOC_AUDIT.md`](../posthoc/POSTHOC_AUDIT.md). No calibration coefficient was fit from test outcomes, but the decision to run and emphasize those analyses followed the primary results. The confirmatory language therefore belongs to the frozen MFRC estimands only. The out-of-sample fit is a hypothesis for a new, preregistered replication, not a result to present as confirmatory.
+
+## Relevant literature and the novelty boundary
+
+### Probability forecasts
+
+[Gneiting, Balabdaoui, and Raftery (2007)](https://doi.org/10.1111/j.1467-9868.2007.00587.x) separate calibration from sharpness: good probabilistic forecasts should be as concentrated as the data permit subject to calibration, and evaluation should use suitable scoring rules and diagnostics. This motivates reporting proper squared/Brier loss, reliability diagnostics, and forecast concentration as distinct quantities. A probability's apparent spread or entropy alone does not establish calibration or useful resolution.
+
+### LLM annotation methods and prompt sensitivity
+
+[Abdurahman et al. (2025)](https://doi.org/10.1177/25152459251325174) provide social-science evaluation guidance: validate model outputs against human data, report prompt sensitivity and processing/model decisions, make replication materials inspectable, and identify which analyses were prespecified versus post hoc. [Carlson and Burbano (2026)](https://doi.org/10.1002/smj.70023) show why validation must extend through downstream analyses: model and prompt decisions can change labels and downstream conclusions, and sensitivity and reproducibility are central parts of the design. [Abraham, Arnal, and Marie (2025)](https://doi.org/10.1007/s42001-025-00388-6) directly study prompt selection for social-science annotation and report substantial prompt-to-prompt performance variation. These sources support a fixed canonical question, a single predeclared wording sensitivity, transparent model identity, and a held-out human-labeled test set.
+
+### Human variation and soft labels
+
+[Fornaciari et al. (2021)](https://aclanthology.org/2021.naacl-main.204/) show that soft-label targets can preserve information lost by a hard aggregation. [Mostafazadeh Davani, Díaz, and Prabhakaran (2022)](https://aclanthology.org/2022.tacl-1.6/) argue and demonstrate that subjective annotator disagreement can contain systematic, scientifically useful information; modeling annotators separately can reveal patterns hidden by a majority vote. The current study follows this tradition by retaining vote shares, while keeping their interpretation bounded to the observed annotator pool.
+
+LLM-generated variation does not automatically stand in for human variation. [Ni et al. (2026)](https://aclanthology.org/2026.eacl-long.3/) find that disagreement modeling changes with reasoning regime: in their experiments, naive chain-of-thought and RLVR-style reasoning had different effects, with RLVR degrading performance on disagreement modeling. [Sánchez-Montero et al. (2025)](https://aclanthology.org/2025.analogyangle-1.5/) report that soft LLM scores can align with average human metaphoricity judgments while still missing subtle inter-annotator disagreement patterns. Together these studies make it necessary to validate both level and disagreement structure for the particular output and task.
+
+### Closest prior work: a serious boundary
+
+[Liu (2026)](https://www.sciencedirect.com/science/article/abs/pii/S0747563226000853), *Rubric-conditioned large language model labeling: Agreement, uncertainty, and label consistency in subjective text annotation*, is the closest prior work and should be treated as the main novelty boundary. It already evaluates fixed-rubric LLM labeling on HateXplain, produces hard labels and class-probability vectors, examines entropy and human disagreement, considers human-review triage, and uses soft labels in downstream supervision. The paper must not claim to be the first study of rubric-conditioned probability vectors, entropy-based triage, or soft LLM labels for subjective annotation.
+
+The defensible extension is narrower: preregister a cross-corpus replication of the **probability-to-observed-vote-share** question using GoEmotions' raw individual ratings and six binary emotion groups; test whether a development-fitted affine map transfers to untouched items; and report information, calibration, and disagreement as distinct outcomes. This is a dataset/task and confirmatory-design extension in light of Liu's work, not a claim of conceptual priority. Any comparison with Liu should describe its precise differences in corpus, construct, reference, outcome, and validation split rather than imply it omitted these themes.
+
+### Interface meaning and practitioner guidance
+
+The current [System One documentation](https://docs.system-one.dev/en/docs/primitives) defines Noul as `P(true)` for a yes/no question. That is the answer's interface semantics; the application must validate it against the relevant human reference before using it as a distributional annotation. The practitioner guidance of [Hamel Husain and Shreya Shankar](https://hamel.dev/blog/posts/evals-faq/) recommends human-led inspection of failure cases before automating prompt optimization and a held-out evaluation set for judging changes. This is practical workflow guidance, not a peer-reviewed novelty claim. It supports examining development disagreements and failure modes while keeping test annotations and outcomes sealed from prompt selection.
+
+## Proposed paper claim
+
+Frame the paper around when model-native probabilities can function as **distributional annotations** and whether calibration is a necessary empirical step. State that the completed MFRC work found useful probability information under squared loss, systematic raw-level misalignment for several foundations, a promising but post-hoc development calibration result, modest entropy association with coder disagreement, and sensitivity of levels to wording. Then present GoEmotions as the confirmatory test of the calibration hypothesis. Do not say “JEV reproduces humans.” State that the target is the observed vote distribution of a specified annotation panel and that the result can vary by task, wording, model version, corpus, and rater process.
+
+## References
+
+1. Gneiting, T., Balabdaoui, F., & Raftery, A. E. (2007). Probabilistic forecasts, calibration and sharpness. *Journal of the Royal Statistical Society: Series B*, 69(2), 243–268. [DOI](https://doi.org/10.1111/j.1467-9868.2007.00587.x).
+2. Abdurahman, S., Ziabari, A. S., Moore, A. K., Bartels, D. M., & Dehghani, M. (2025). A primer for evaluating large language models in social-science research. *Advances in Methods and Practices in Psychological Science*. [DOI](https://doi.org/10.1177/25152459251325174).
+3. Carlson, N. A., & Burbano, V. (2026). The use of LLMs to annotate data in management research: Foundational guidelines and warnings. *Strategic Management Journal*, 47(3), 699–725. [DOI](https://doi.org/10.1002/smj.70023).
+4. Abraham, L., Arnal, C., & Marie, A. (2025). Prompt selection matters: Enhancing text annotations for social sciences with large language models. *Journal of Computational Social Science*, 8(3), article 19. [DOI](https://doi.org/10.1007/s42001-025-00388-6).
+5. Fornaciari, T., Uma, A., Paun, S., Plank, B., Hovy, D., & Poesio, M. (2021). Beyond black & white: Leveraging annotator disagreement via soft-label multi-task learning. In *Proceedings of NAACL-HLT 2021*, 2591–2597. [ACL Anthology](https://aclanthology.org/2021.naacl-main.204/).
+6. Mostafazadeh Davani, A., Díaz, M., & Prabhakaran, V. (2022). Dealing with disagreements: Looking beyond the majority vote in subjective annotations. *Transactions of the Association for Computational Linguistics*, 10, 92–110. [ACL Anthology](https://aclanthology.org/2022.tacl-1.6/).
+7. Ni, J., Fan, Y., Zouhar, V., Rooein, D., Hoyle, A. M., Sachan, M., Leippold, M., Hovy, D., & Ash, E. (2026). Can reasoning help large language models capture human annotator disagreement? In *Proceedings of EACL 2026*, 36–54. [ACL Anthology](https://aclanthology.org/2026.eacl-long.3/).
+8. Sánchez-Montero, A., Bel-Enguix, G., Ojeda-Trueba, S.-L., & Sierra, G. (2025). Prompting metaphoricity: Soft labeling with large language models in popular communication of science tweets in Spanish. In *Proceedings of the 2nd Workshop on Analogical Abstraction in Cognition, Perception, and Language*, 45–56. [ACL Anthology](https://aclanthology.org/2025.analogyangle-1.5/).
+9. Liu, J. (2026). Rubric-conditioned large language model labeling: Agreement, uncertainty, and label consistency in subjective text annotation. *Computers in Human Behavior*, 181, article 108988. [Journal page](https://www.sciencedirect.com/science/article/abs/pii/S0747563226000853).
+10. Demszky, D., Movshovitz-Attias, D., Ko, J., Cowen, A., Nemade, G., & Ravi, S. (2020). GoEmotions: A dataset of fine-grained emotions. In *Proceedings of ACL 2020*, 4040–4054. [ACL Anthology](https://aclanthology.org/2020.acl-main.372/).
+11. Husain, H., & Shankar, S. (2026). *AI Evals: Everything You Need to Know*. [Practitioner guide](https://hamel.dev/blog/posts/evals-faq/).

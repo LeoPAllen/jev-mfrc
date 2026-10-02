@@ -55,3 +55,7 @@ Added `scripts/build_release_bundle.py` and a non-ignored `release/` archive wit
 2026-10-02 — Post-hoc diagnostics
 
 Added a clearly labeled exploratory diagnostic script, tables, calibration figure, audit, and synthetic tests under `posthoc/` and `tests/`. Calibration is fit only on canonical dev outcomes; held-out comparisons and comment bootstraps are separate from frozen results. The script ran successfully and the complete suite passed (101 tests; `PYTHONPATH=.:src PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -vv`). No JEV calls or frozen-output changes; no unresolved issue.
+
+2026-10-02 — Literature positioning and confirmatory next-study plan
+
+Added literature positioning centered on information, calibration, and disagreement, with Liu (2026) identified as the closest prior and current MFRC calibration findings labeled post hoc. Specified a GoEmotions raw-rater replication, six fixed mapped emotion questions, data-quality and split rules, one development calibration set, primary coder-level loss, secondary diagnostics, and an optional pinned generative-LLM extension. No results or raw data changed; no JEV calls or tests were run. Unresolved pre-run item: exact GoEmotions file and repository hashes must be recorded in the corpus lock before any inference.
